@@ -103,27 +103,13 @@ final class RealtimeService: RealtimeServicing {
 
   private func decodeRecord<T: Decodable>(from action: AnyAction) -> T? {
     decoderQueue.sync {
-      switch action {
-      case let .insert(insert):
-        return try? insert.decodeRecord(as: T.self, decoder: realtimeDecoder)
-      case let .update(update):
-        return try? update.decodeRecord(as: T.self, decoder: realtimeDecoder)
-      case .delete:
-        return nil
-      }
+      action.decodeRecord(as: T.self, decoder: realtimeDecoder)
     }
   }
 
   private func decodeOldRecord<T: Decodable>(from action: AnyAction) -> T? {
     decoderQueue.sync {
-      switch action {
-      case let .update(update):
-        return try? update.decodeOldRecord(as: T.self, decoder: realtimeDecoder)
-      case let .delete(delete):
-        return try? delete.decodeOldRecord(as: T.self, decoder: realtimeDecoder)
-      case .insert:
-        return nil
-      }
+      action.decodeOldRecord(as: T.self, decoder: realtimeDecoder)
     }
   }
 }
