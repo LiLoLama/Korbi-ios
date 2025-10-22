@@ -2,7 +2,6 @@ import XCTest
 import SwiftUI
 import Combine
 import UIKit
-@testable import Korbi
 
 final class SnapshotTests: XCTestCase {
   func testHomeViewLight() {
@@ -13,6 +12,7 @@ final class SnapshotTests: XCTestCase {
     captureHomeView(style: .dark, name: "HomeView-Dark")
   }
 
+  @MainActor
   private func captureHomeView(style: UIUserInterfaceStyle, name: String) {
     let appState = AppState()
     let listID = UUID()

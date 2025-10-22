@@ -18,14 +18,13 @@ final class ListsService: ListsServicing {
   }
 
   func loadLists(for householdID: UUID) async throws {
-    let response = try await client
+    let response: PostgrestResponse<[ListRecord]> = try await client
       .from("lists")
       .select("id, household_id, name, is_default, created_at")
       .eq("household_id", value: householdID)
       .order("created_at", ascending: true)
       .execute()
-    let records = try response.decoded(to: [ListRecord].self)
-    let lists = records.map { $0.entity }
+    let lists = response.value.map { $0.entity }
     await MainActor.run {
       appState.lists = lists
     }

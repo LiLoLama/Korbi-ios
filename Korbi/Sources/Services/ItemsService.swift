@@ -22,15 +22,14 @@ final class ItemsService: ItemsServicing {
   }
 
   func loadItems(for listID: UUID) async throws {
-    let response = try await client
+    let response: PostgrestResponse<[ItemRecord]> = try await client
       .from("items")
       .select("id, list_id, name, quantity_text, quantity_numeric, unit, status, position, created_at, purchased_at, created_by, purchased_by")
       .eq("list_id", value: listID)
       .order("status", ascending: true)
       .order("created_at", ascending: false)
       .execute()
-    let records = try response.decoded(to: [ItemRecord].self)
-    let entities = records.map { $0.entity }
+    let entities = response.value.map { $0.entity }
     await MainActor.run {
       appState.items[listID] = entities
     }

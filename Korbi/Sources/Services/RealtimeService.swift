@@ -9,7 +9,11 @@ protocol RealtimeServicing: AnyObject {
 final class RealtimeService: RealtimeServicing {
   private let client: SupabaseClient
   private unowned let appState: AppState
-  private var channel: RealtimeChannel?
+  private var channel: RealtimeChannelV2?
+  private var subscriptions: [RealtimeSubscription] = []
+  private var subscriptionTask: Task<Void, Never>?
+  private let decoderQueue = DispatchQueue(label: "RealtimeService.decoder")
+  private let realtimeDecoder = AnyJSON.decoder
 
   init(client: SupabaseClient, appState: AppState) {
     self.client = client
@@ -19,68 +23,106 @@ final class RealtimeService: RealtimeServicing {
   func subscribe(to householdID: UUID) {
     unsubscribe()
     let channelName = "household:\(householdID.uuidString)"
-    let channel = client.realtime.channel(.init(name: channelName))
+    let channel = client.realtimeV2.channel(channelName)
 
-    channel.on(.postgresChanges, filter: .init(event: .all, schema: "public", table: "items")) { [weak self] payload in
-      self?.handleItemChange(payload: payload)
+    let itemsSubscription = channel.onPostgresChange(AnyAction.self, schema: "public", table: "items") { [weak self] action in
+      self?.handleItemChange(action: action)
     }
 
-    channel.on(.postgresChanges, filter: .init(event: .all, schema: "public", table: "lists")) { [weak self] payload in
-      self?.handleListChange(payload: payload)
+    let listsSubscription = channel.onPostgresChange(AnyAction.self, schema: "public", table: "lists") { [weak self] action in
+      self?.handleListChange(action: action)
     }
 
-    channel.subscribe()
+    subscriptions = [itemsSubscription, listsSubscription]
+    subscriptionTask = Task { await channel.subscribe() }
     self.channel = channel
   }
 
   func unsubscribe() {
+    subscriptionTask?.cancel()
+    subscriptionTask = nil
+    subscriptions.forEach { $0.cancel() }
+    subscriptions.removeAll()
     if let channel {
-      channel.unsubscribe()
+      Task { await channel.unsubscribe() }
     }
     channel = nil
   }
 
-  private func handleListChange(payload: PostgresChangePayload) {
-    guard let data: ListRecord = payload.decode() else { return }
-    let entity = data.entity
-    Task { @MainActor in
-      if let index = appState.lists.firstIndex(where: { $0.id == entity.id }) {
-        appState.lists[index] = entity
-      } else {
-        appState.lists.append(entity)
+  private func handleListChange(action: AnyAction) {
+    switch action {
+    case .insert, .update:
+      guard let data: ListRecord = decodeRecord(from: action) else { return }
+      let entity = data.entity
+      Task { @MainActor in
+        if let index = appState.lists.firstIndex(where: { $0.id == entity.id }) {
+          appState.lists[index] = entity
+        } else {
+          appState.lists.append(entity)
+        }
+      }
+    case .delete:
+      guard let data: ListRecord = decodeOldRecord(from: action) else { return }
+      let entity = data.entity
+      Task { @MainActor in
+        appState.lists.removeAll { $0.id == entity.id }
       }
     }
   }
 
-  private func handleItemChange(payload: PostgresChangePayload) {
-    Task { @MainActor in
-      switch payload.eventType {
-      case .insert, .update:
-        if let record: ItemRecord = payload.decode() {
-          let entity = record.entity
-          var items = appState.items[entity.listID] ?? []
-          if let idx = items.firstIndex(where: { $0.id == entity.id }) {
-            items[idx] = entity
-          } else {
-            items.append(entity)
-          }
-          items.sort { lhs, rhs in
-            if lhs.status == rhs.status {
-              return lhs.createdAt > rhs.createdAt
-            }
-            return lhs.status == .open && rhs.status == .purchased
-          }
-          appState.items[entity.listID] = items
+  private func handleItemChange(action: AnyAction) {
+    switch action {
+    case .insert, .update:
+      guard let record: ItemRecord = decodeRecord(from: action) else { return }
+      let entity = record.entity
+      Task { @MainActor in
+        var items = appState.items[entity.listID] ?? []
+        if let idx = items.firstIndex(where: { $0.id == entity.id }) {
+          items[idx] = entity
+        } else {
+          items.append(entity)
         }
+        items.sort { lhs, rhs in
+          if lhs.status == rhs.status {
+            return lhs.createdAt > rhs.createdAt
+          }
+          return lhs.status == .open && rhs.status == .purchased
+        }
+        appState.items[entity.listID] = items
+      }
+    case .delete:
+      guard let record: ItemRecord = decodeOldRecord(from: action) else { return }
+      let entity = record.entity
+      Task { @MainActor in
+        var items = appState.items[entity.listID] ?? []
+        items.removeAll { $0.id == entity.id }
+        appState.items[entity.listID] = items
+      }
+    }
+  }
+
+  private func decodeRecord<T: Decodable>(from action: AnyAction) -> T? {
+    decoderQueue.sync {
+      switch action {
+      case let .insert(insert):
+        return try? insert.decodeRecord(as: T.self, decoder: realtimeDecoder)
+      case let .update(update):
+        return try? update.decodeRecord(as: T.self, decoder: realtimeDecoder)
       case .delete:
-        if let record: ItemRecord = payload.decodeOld() {
-          let entity = record.entity
-          var items = appState.items[entity.listID] ?? []
-          items.removeAll { $0.id == entity.id }
-          appState.items[entity.listID] = items
-        }
-      default:
-        break
+        return nil
+      }
+    }
+  }
+
+  private func decodeOldRecord<T: Decodable>(from action: AnyAction) -> T? {
+    decoderQueue.sync {
+      switch action {
+      case let .update(update):
+        return try? update.decodeOldRecord(as: T.self, decoder: realtimeDecoder)
+      case let .delete(delete):
+        return try? delete.decodeOldRecord(as: T.self, decoder: realtimeDecoder)
+      case .insert:
+        return nil
       }
     }
   }

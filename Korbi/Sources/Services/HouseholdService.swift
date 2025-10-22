@@ -19,14 +19,12 @@ final class HouseholdService: HouseholdServicing {
   }
 
   func refreshHouseholds() async throws {
-    let response = try await client
+    let response: PostgrestResponse<[HouseholdMembershipRecord]> = try await client
       .from("household_members")
       .select("id, household_id, role, created_at, profiles:profiles!inner(display_name), households:households!inner(id, name, created_at)")
       .order("created_at", ascending: false)
       .execute()
-
-    let records = try response.decoded(to: [HouseholdMembershipRecord].self)
-    let households = records.map { record -> HouseholdEntity in
+    let households = response.value.map { record -> HouseholdEntity in
       HouseholdEntity(
         id: record.households.id,
         name: record.households.name,
@@ -60,14 +58,13 @@ final class HouseholdService: HouseholdServicing {
   }
 
   func loadMembers(of householdID: UUID) async throws -> [HouseholdMemberEntity] {
-    let response = try await client
+    let response: PostgrestResponse<[HouseholdMembershipRecord]> = try await client
       .from("household_members")
       .select("id, household_id, role, created_at, user_id, profiles:profiles(display_name)")
       .eq("household_id", value: householdID)
       .order("created_at", ascending: true)
       .execute()
-    let records = try response.decoded(to: [HouseholdMembershipRecord].self)
-    return records.map { $0.memberEntity }
+    return response.value.map { $0.memberEntity }
   }
 
   func generateInvite(for householdID: UUID) async throws -> InviteEntity {
