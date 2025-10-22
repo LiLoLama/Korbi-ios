@@ -36,9 +36,8 @@ final class AuthService: AuthServicing {
 
   func signIn(email: String, password: String) async throws {
     let response = try await client.auth.signIn(email: email, password: password)
-    if let user = response.user {
-      stateSubject.send(AuthSession(userID: user.id, email: user.email))
-    }
+    let user = response.user
+    stateSubject.send(AuthSession(userID: user.id, email: user.email))
   }
 
   func signInWithApple(result: ASAuthorizationAppleIDCredential) async throws {
@@ -48,9 +47,8 @@ final class AuthService: AuthServicing {
     let tokenString = String(decoding: identityToken, as: UTF8.self)
     let nonce = result.state ?? UUID().uuidString
     let response = try await client.auth.signInWithIdToken(credentials: .init(provider: .apple, idToken: tokenString, nonce: nonce))
-    if let user = response.user {
-      stateSubject.send(AuthSession(userID: user.id, email: user.email))
-    }
+    let user = response.user
+    stateSubject.send(AuthSession(userID: user.id, email: user.email))
   }
 
   func signOut() async throws {

@@ -53,7 +53,7 @@ final class HouseholdService: HouseholdServicing {
 
   func joinHousehold(token: UUID) async throws {
     let payload = InviteRedeemPayload(token: token)
-    _ = try await client.functions.invoke("redeem_invite", body: payload)
+    try await client.functions.invoke("redeem_invite", options: .init(body: payload))
     try await refreshHouseholds()
   }
 
@@ -69,7 +69,10 @@ final class HouseholdService: HouseholdServicing {
 
   func generateInvite(for householdID: UUID) async throws -> InviteEntity {
     struct Payload: Encodable { let household_id: UUID }
-    let response: InviteRecord = try await client.functions.invoke("create_invite", body: Payload(household_id: householdID))
+    let response: InviteRecord = try await client.functions.invoke(
+      "create_invite",
+      options: .init(body: Payload(household_id: householdID))
+    )
     guard let url = URL(string: "korbi://invite/\(response.token.uuidString)") else {
       throw URLError(.badURL)
     }
