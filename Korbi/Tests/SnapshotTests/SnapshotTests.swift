@@ -4,10 +4,12 @@ import Combine
 import UIKit
 
 final class SnapshotTests: XCTestCase {
+  @MainActor
   func testHomeViewLight() {
     captureHomeView(style: .light, name: "HomeView-Light")
   }
 
+  @MainActor
   func testHomeViewDark() {
     captureHomeView(style: .dark, name: "HomeView-Dark")
   }
