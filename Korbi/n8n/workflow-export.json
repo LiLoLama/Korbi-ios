@@ -1,0 +1,143 @@
+{
+  "name": "Korbi Voice Ingestion",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "korbi/voice",
+        "options": {
+          "responseData": {
+            "responseContentType": "application/json"
+          }
+        }
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const crypto = require('crypto');\nconst secret = $env.KORBI_HMAC_SECRET;\nconst fields = Object.assign({}, $json);\nconst signature = fields.signature;\ndelete fields.signature;\nconst audioHash = $json.audio_sha256;\nconst sortedKeys = Object.keys(fields).sort();\nlet canonical = '';\nsortedKeys.forEach((key, index) => {\n  canonical += `${key}=${fields[key]}`;\n  canonical += '\\n';\n});\ncanonical += `audio_sha256=${audioHash}`;\nconst digest = crypto.createHmac('sha256', secret).update(canonical).digest('hex');\nif (digest !== signature) {\n  throw new Error('Invalid signature');\n}\nreturn items;"
+      },
+      "name": "Validate HMAC",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 150]
+    },
+    {
+      "parameters": {
+        "operation": "recognize",
+        "language": "de",
+        "binaryProperty": "data"
+      },
+      "name": "Whisper STT",
+      "type": "n8n-nodes-base.openAiWhisper",
+      "typeVersion": 1,
+      "position": [450, 450]
+    },
+    {
+      "parameters": {
+        "mode": "chat",
+        "options": {
+          "systemMessage": "Du erhältst den Transkript einer Einkaufsliste. Extrahiere strukturierte JSON-Items mit name, quantity_text und unit." ,
+          "temperature": 0.2
+        }
+      },
+      "name": "LLM Parsing",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 2,
+      "position": [700, 450]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "items",
+        "schema": "public",
+        "columns": [
+          "list_id",
+          "name",
+          "quantity_text",
+          "unit",
+          "created_by"
+        ],
+        "values": "={{[{\"list_id\": $json.list_id, \"name\": $json.name, \"quantity_text\": $json.quantity_text, \"unit\": $json.unit, \"created_by\": $json.user_id}]}}"
+      },
+      "name": "Supabase Insert",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [950, 450]
+    },
+    {
+      "parameters": {
+        "functionCode": "return [{ json: { status: 'ok', transcript: $json.transcript, items: $json.items }}];"
+      },
+      "name": "Respond",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1200, 450]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate HMAC",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Whisper STT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate HMAC": {
+      "main": [
+        [
+          {
+            "node": "Whisper STT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Whisper STT": {
+      "main": [
+        [
+          {
+            "node": "LLM Parsing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Parsing": {
+      "main": [
+        [
+          {
+            "node": "Supabase Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Insert": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
