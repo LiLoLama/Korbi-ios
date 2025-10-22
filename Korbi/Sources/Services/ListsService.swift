@@ -18,11 +18,11 @@ final class ListsService: ListsServicing {
   }
 
   func loadLists(for householdID: UUID) async throws {
-    let response = try await client.database
+    let response = try await client
       .from("lists")
       .select("id, household_id, name, is_default, created_at")
       .eq("household_id", value: householdID)
-      .order(column: "created_at", ascending: true)
+      .order("created_at", ascending: true)
       .execute()
     let records = try response.decoded(to: [ListRecord].self)
     let lists = records.map { $0.entity }
@@ -33,12 +33,15 @@ final class ListsService: ListsServicing {
 
   func createList(name: String, householdID: UUID) async throws {
     let insert = ListInsert(name: name, householdID: householdID)
-    _ = try await client.database.from("lists").insert(insert, returning: .minimal).execute()
+    _ = try await client
+      .from("lists")
+      .insert(insert, returning: .minimal)
+      .execute()
     try await loadLists(for: householdID)
   }
 
   func renameList(_ listID: UUID, name: String) async throws {
-    _ = try await client.database
+    _ = try await client
       .from("lists")
       .update(ListUpdate(name: name))
       .eq("id", value: listID)
@@ -49,7 +52,11 @@ final class ListsService: ListsServicing {
   }
 
   func deleteList(_ listID: UUID) async throws {
-    _ = try await client.database.from("lists").delete().eq("id", value: listID).execute()
+    _ = try await client
+      .from("lists")
+      .delete()
+      .eq("id", value: listID)
+      .execute()
     await MainActor.run {
       appState.lists.removeAll { $0.id == listID }
     }

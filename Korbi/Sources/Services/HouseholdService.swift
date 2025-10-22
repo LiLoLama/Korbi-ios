@@ -19,10 +19,10 @@ final class HouseholdService: HouseholdServicing {
   }
 
   func refreshHouseholds() async throws {
-    let response = try await client.database
+    let response = try await client
       .from("household_members")
       .select("id, household_id, role, created_at, profiles:profiles!inner(display_name), households:households!inner(id, name, created_at)")
-      .order(column: "created_at", ascending: false)
+      .order("created_at", ascending: false)
       .execute()
 
     let records = try response.decoded(to: [HouseholdMembershipRecord].self)
@@ -45,7 +45,11 @@ final class HouseholdService: HouseholdServicing {
 
   func createHousehold(name: String) async throws {
     let payload = HouseholdInsert(name: name)
-    _ = try await client.database.from("households").insert(payload, returning: .representation).single().execute()
+    _ = try await client
+      .from("households")
+      .insert(payload, returning: .representation)
+      .single()
+      .execute()
     try await refreshHouseholds()
   }
 
@@ -56,11 +60,11 @@ final class HouseholdService: HouseholdServicing {
   }
 
   func loadMembers(of householdID: UUID) async throws -> [HouseholdMemberEntity] {
-    let response = try await client.database
+    let response = try await client
       .from("household_members")
       .select("id, household_id, role, created_at, user_id, profiles:profiles(display_name)")
       .eq("household_id", value: householdID)
-      .order(column: "created_at", ascending: true)
+      .order("created_at", ascending: true)
       .execute()
     let records = try response.decoded(to: [HouseholdMembershipRecord].self)
     return records.map { $0.memberEntity }

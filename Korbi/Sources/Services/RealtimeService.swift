@@ -1,7 +1,7 @@
 import Foundation
 import Supabase
 
-protocol RealtimeServicing {
+protocol RealtimeServicing: AnyObject {
   func subscribe(to householdID: UUID)
   func unsubscribe()
 }

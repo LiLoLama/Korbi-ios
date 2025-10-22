@@ -22,12 +22,12 @@ final class ItemsService: ItemsServicing {
   }
 
   func loadItems(for listID: UUID) async throws {
-    let response = try await client.database
+    let response = try await client
       .from("items")
       .select("id, list_id, name, quantity_text, quantity_numeric, unit, status, position, created_at, purchased_at, created_by, purchased_by")
       .eq("list_id", value: listID)
-      .order(column: "status", ascending: true)
-      .order(column: "created_at", ascending: false)
+      .order("status", ascending: true)
+      .order("created_at", ascending: false)
       .execute()
     let records = try response.decoded(to: [ItemRecord].self)
     let entities = records.map { $0.entity }
@@ -38,12 +38,16 @@ final class ItemsService: ItemsServicing {
 
   func addItem(name: String, quantityText: String?, listID: UUID) async throws {
     let insert = ItemInsert(listID: listID, name: name, quantityText: quantityText)
-    _ = try await client.database.from("items").insert(insert, returning: .representation).single().execute()
+    _ = try await client
+      .from("items")
+      .insert(insert, returning: .representation)
+      .single()
+      .execute()
   }
 
   func updateItem(_ item: ItemEntity) async throws {
     let update = ItemUpdate(name: item.name, quantityText: item.quantityText, unit: item.unit, status: item.status)
-    _ = try await client.database
+    _ = try await client
       .from("items")
       .update(update)
       .eq("id", value: item.id)
@@ -51,13 +55,17 @@ final class ItemsService: ItemsServicing {
   }
 
   func deleteItem(id: UUID) async throws {
-    _ = try await client.database.from("items").delete().eq("id", value: id).execute()
+    _ = try await client
+      .from("items")
+      .delete()
+      .eq("id", value: id)
+      .execute()
   }
 
   func togglePurchased(item: ItemEntity) async throws {
     let newStatus: ItemStatus = item.status == .open ? .purchased : .open
     let update = ItemUpdate(name: item.name, quantityText: item.quantityText, unit: item.unit, status: newStatus)
-    _ = try await client.database
+    _ = try await client
       .from("items")
       .update(update)
       .eq("id", value: item.id)
