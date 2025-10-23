@@ -43,10 +43,29 @@ struct ListsView: View {
 
                         LazyVStack(spacing: 20) {
                             ForEach(lists) { list in
-                                NavigationLink(destination: listDetail(list)) {
-                                    ListCard(summary: list)
+                                ZStack(alignment: .topTrailing) {
+                                    NavigationLink(destination: listDetail(list)) {
+                                        ListCard(summary: list)
+                                    }
+                                    .buttonStyle(.plain)
+
+                                    Button {
+                                        deleteList(list)
+                                    } label: {
+                                        Image(systemName: "trash")
+                                            .font(.system(size: 16, weight: .semibold))
+                                            .padding(10)
+                                            .background(
+                                                Circle()
+                                                    .fill(settings.palette.card.opacity(0.85))
+                                            )
+                                            .foregroundStyle(settings.palette.primary)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .padding(.top, 8)
+                                    .padding(.trailing, 8)
+                                    .shadow(color: settings.palette.primary.opacity(0.12), radius: 4, y: 1)
                                 }
-                                .buttonStyle(.plain)
                             }
                         }
                     }
@@ -126,6 +145,10 @@ private extension ListsView {
 
         lists.append(newList)
         isPresentingCreateList = false
+    }
+
+    func deleteList(_ summary: ShoppingListSummary) {
+        lists.removeAll { $0.id == summary.id }
     }
 }
 

@@ -17,10 +17,20 @@ struct HouseholdView: View {
         .init(name: "Ava", role: "Haushalt", status: "Benötigt Waschmittel", imageName: "person.crop.circle")
     ]
 
-    private let routines: [String] = [
+    @State private var routines: [String] = [
         "Mittwochs Obstkorb auffüllen",
         "Samstags gemeinsamer Markttag",
         "Monatliche Vorratsübersicht"
+    ]
+
+    @State private var isPresentingRoutineCreator = false
+    @State private var newRoutineName = ""
+    @State private var isPresentingHouseholdSwitcher = false
+
+    private let availableHouseholds = [
+        "Mein Haushalt",
+        "WG Hafenstraße",
+        "Ferienhaus Ostsee"
     ]
 
     var body: some View {
@@ -38,13 +48,46 @@ struct HouseholdView: View {
             .toolbarBackground(settings.palette.background.opacity(0.9), for: .navigationBar)
             .navigationTitle("Haushalt")
         }
+        .sheet(isPresented: $isPresentingRoutineCreator) {
+            RoutineCreatorSheet(
+                routineName: $newRoutineName,
+                onCancel: dismissRoutineCreator,
+                onCreate: finalizeRoutine
+            )
+            .environmentObject(settings)
+        }
+        .sheet(isPresented: $isPresentingHouseholdSwitcher) {
+            HouseholdSwitcherSheet(
+                households: availableHouseholds,
+                selectedHousehold: settings.householdName,
+                onSelect: switchHousehold,
+                onDismiss: { isPresentingHouseholdSwitcher = false }
+            )
+            .environmentObject(settings)
+        }
     }
 
     private var memberSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(settings.householdName)
-                .font(KorbiTheme.Typography.title())
-                .foregroundStyle(settings.palette.textPrimary)
+            HStack(alignment: .center) {
+                Text(settings.householdName)
+                    .font(KorbiTheme.Typography.title())
+                    .foregroundStyle(settings.palette.textPrimary)
+
+                Spacer()
+
+                Button {
+                    isPresentingHouseholdSwitcher = true
+                } label: {
+                    Label("Haushalt wechseln", systemImage: "arrow.triangle.2.circlepath")
+                        .labelStyle(.titleAndIcon)
+                        .font(KorbiTheme.Typography.body(weight: .semibold))
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(settings.palette.primary)
+                .controlSize(.small)
+                .clipShape(RoundedRectangle(cornerRadius: KorbiTheme.Metrics.compactCornerRadius, style: .continuous))
+            }
 
             VStack(spacing: 14) {
                 ForEach(members) { member in
@@ -106,7 +149,7 @@ struct HouseholdView: View {
                         }
                     }
 
-                    Button(action: {}) {
+                    Button(action: { presentRoutineCreator() }) {
                         Label("Routine hinzufügen", systemImage: "plus")
                             .font(KorbiTheme.Typography.body(weight: .medium))
                     }
@@ -114,6 +157,112 @@ struct HouseholdView: View {
                     .tint(settings.palette.primary)
                     .controlSize(.large)
                     .clipShape(RoundedRectangle(cornerRadius: KorbiTheme.Metrics.compactCornerRadius, style: .continuous))
+                }
+            }
+        }
+    }
+}
+
+private extension HouseholdView {
+    func presentRoutineCreator() {
+        newRoutineName = ""
+        isPresentingRoutineCreator = true
+    }
+
+    func dismissRoutineCreator() {
+        isPresentingRoutineCreator = false
+    }
+
+    func finalizeRoutine() {
+        let trimmedName = newRoutineName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { return }
+
+        routines.append(trimmedName)
+        isPresentingRoutineCreator = false
+    }
+
+    func switchHousehold(to name: String) {
+        settings.householdName = name
+        isPresentingHouseholdSwitcher = false
+    }
+}
+
+private struct RoutineCreatorSheet: View {
+    @EnvironmentObject private var settings: KorbiSettings
+    @Binding var routineName: String
+    let onCancel: () -> Void
+    let onCreate: () -> Void
+
+    private var isCreateDisabled: Bool {
+        routineName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section(header: Text("Name der Routine")) {
+                    TextField("Frische Routine", text: $routineName)
+                        .textInputAutocapitalization(.sentences)
+                }
+
+                Section(header: Text("Beschreibung")) {
+                    Text("Lege eine wiederkehrende Aufgabe fest, die deinem Haushalt hilft, organisiert zu bleiben.")
+                        .font(KorbiTheme.Typography.caption())
+                        .foregroundStyle(settings.palette.textSecondary)
+                        .padding(.vertical, 4)
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .background(KorbiBackground())
+            .navigationTitle("Routine hinzufügen")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Abbrechen", action: onCancel)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Speichern", action: onCreate)
+                        .disabled(isCreateDisabled)
+                }
+            }
+        }
+    }
+}
+
+private struct HouseholdSwitcherSheet: View {
+    @EnvironmentObject private var settings: KorbiSettings
+    let households: [String]
+    let selectedHousehold: String
+    let onSelect: (String) -> Void
+    let onDismiss: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section(header: Text("Verfügbare Haushalte")) {
+                    ForEach(households, id: \.self) { household in
+                        Button {
+                            onSelect(household)
+                        } label: {
+                            HStack {
+                                Text(household)
+                                    .font(KorbiTheme.Typography.body(weight: .medium))
+                                Spacer()
+                                if household == selectedHousehold {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(settings.palette.primary)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .background(KorbiBackground())
+            .navigationTitle("Haushalt wechseln")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Schließen", action: onDismiss)
                 }
             }
         }
