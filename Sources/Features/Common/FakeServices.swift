@@ -1,7 +1,7 @@
 import Foundation
 
 protocol FailureConfigurable {
-    func simulateNextFailure()
+    func simulateNextFailure() async
 }
 
 protocol HouseholdServicing {
@@ -60,8 +60,8 @@ final class HouseholdFakeService: HouseholdServicing, FailureConfigurable {
         return household.members
     }
 
-    func simulateNextFailure() {
-        delay.injectFailure()
+    func simulateNextFailure() async {
+        await delay.injectFailure()
     }
 }
 
@@ -82,8 +82,8 @@ final class ListsFakeService: ListsServicing, FailureConfigurable {
         return list
     }
 
-    func simulateNextFailure() {
-        delay.injectFailure()
+    func simulateNextFailure() async {
+        await delay.injectFailure()
     }
 }
 
@@ -143,7 +143,7 @@ final class ItemsFakeService: ItemsServicing, FailureConfigurable {
         return (open, done)
     }
 
-    func simulateNextFailure() {
-        delay.injectFailure()
+    func simulateNextFailure() async {
+        await delay.injectFailure()
     }
 }
