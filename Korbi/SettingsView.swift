@@ -39,7 +39,7 @@ struct SettingsView: View {
                     } label: {
                         Label("Haushalt teilen", systemImage: "person.2.circle")
                             .font(KorbiTheme.Typography.body(weight: .semibold))
-                            .foregroundStyle(settings.palette.primary)
+                            .foregroundStyle(.white)
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(settings.palette.primary)
