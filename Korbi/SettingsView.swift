@@ -1,44 +1,33 @@
 import SwiftUI
 
-struct SettingsOption: Identifiable {
-    let id = UUID()
-    let title: String
-    let subtitle: String
-    let icon: String
-}
-
 struct SettingsView: View {
-    private let preferences: [SettingsOption] = [
-        .init(title: "Haushaltsprofil", subtitle: "Mitglieder & Rollen verwalten", icon: "person.3"),
-        .init(title: "Benachrichtigungen", subtitle: "Push, E-Mail & wöchentliche Übersicht", icon: "bell.badge"),
-        .init(title: "Listen-Templates", subtitle: "Saisonale Empfehlungen anpassen", icon: "square.grid.2x2"),
-        .init(title: "Stil & Anzeige", subtitle: "Hell/Dunkel & Schriftgröße", icon: "sun.max")
-    ]
+    @EnvironmentObject private var settings: KorbiSettings
 
     var body: some View {
         NavigationStack {
             List {
-                Section(header: Text("Einstellungen").font(KorbiTheme.Typography.title())) {
-                    ForEach(preferences) { option in
-                        HStack(spacing: 16) {
-                            Image(systemName: option.icon)
-                                .font(.system(size: 22, weight: .semibold))
-                                .foregroundStyle(KorbiTheme.Colors.primary)
-                                .frame(width: 44, height: 44)
-                                .background(
-                                    RoundedRectangle(cornerRadius: KorbiTheme.Metrics.compactCornerRadius, style: .continuous)
-                                        .fill(KorbiTheme.Colors.primary.opacity(0.14))
-                                )
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(option.title)
-                                    .font(KorbiTheme.Typography.body(weight: .semibold))
-                                Text(option.subtitle)
-                                    .font(KorbiTheme.Typography.caption())
-                                    .foregroundStyle(KorbiTheme.Colors.textSecondary)
-                            }
-                        }
-                        .padding(.vertical, 8)
+                Section(header: Text("Haushalt").font(KorbiTheme.Typography.title())) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Name")
+                            .font(KorbiTheme.Typography.body(weight: .semibold))
+                            .foregroundStyle(settings.palette.textSecondary)
+                        TextField("Haushalt", text: $settings.householdName)
+                            .font(KorbiTheme.Typography.body())
                     }
+                    .padding(.vertical, 4)
+                }
+
+                Section(header: Text("Darstellung").font(KorbiTheme.Typography.title())) {
+                    Toggle(isOn: $settings.useWarmLightMode) {
+                        Label("Warmer Light Mode", systemImage: "sun.max.fill")
+                            .font(KorbiTheme.Typography.body(weight: .semibold))
+                    }
+                    .tint(settings.palette.primary)
+
+                    Text("Der warme Modus sorgt für freundliche, helle Farben – ideal für entspannte Einkaufsplanung am Tag.")
+                        .font(KorbiTheme.Typography.caption())
+                        .foregroundStyle(settings.palette.textSecondary)
+                        .padding(.top, 4)
                 }
 
                 Section(header: Text("Mehr Korbi")) {
@@ -46,7 +35,7 @@ struct SettingsView: View {
                         StyleGuideView()
                     }
                     .font(KorbiTheme.Typography.body(weight: .medium))
-                    .foregroundStyle(KorbiTheme.Colors.primary)
+                    .foregroundStyle(settings.palette.primary)
 
                     Button(role: .destructive) {
                     } label: {
@@ -57,7 +46,7 @@ struct SettingsView: View {
             .scrollContentBackground(.hidden)
             .background(KorbiBackground())
             .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarBackground(KorbiTheme.Colors.background.opacity(0.9), for: .navigationBar)
+            .toolbarBackground(settings.palette.background.opacity(0.9), for: .navigationBar)
             .navigationTitle("Einstellungen")
         }
     }
@@ -65,4 +54,5 @@ struct SettingsView: View {
 
 #Preview {
     SettingsView()
+        .environmentObject(KorbiSettings())
 }

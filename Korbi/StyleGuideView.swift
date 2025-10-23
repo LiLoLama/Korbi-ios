@@ -1,12 +1,16 @@
 import SwiftUI
 
 struct StyleGuideView: View {
-    private let palette: [(name: String, color: Color, hex: String)] = [
-        ("Primary Green", KorbiTheme.Colors.primary, "#2E6F40"),
-        ("Neutral Background", KorbiTheme.Colors.background, "Light #F3F0EB / Dark #17191A"),
-        ("Neutral Card", KorbiTheme.Colors.card, "Light #FFFFFF / Dark #2A2C2F"),
-        ("Accent Sand", KorbiTheme.Colors.accent, "Light #D9CFC1 / Dark #63584A")
-    ]
+    @EnvironmentObject private var settings: KorbiSettings
+
+    private var palette: [(name: String, color: Color, description: String)] {
+        [
+            ("Primär", settings.palette.primary, "Key Action & Highlights"),
+            ("Hintergrund", settings.palette.background, "Flächen & Szenen"),
+            ("Card", settings.palette.card, "Module & Panels"),
+            ("Akzent", settings.palette.accent, "Hinweise & Tags")
+        ]
+    }
 
     var body: some View {
         ScrollView {
@@ -19,7 +23,7 @@ struct StyleGuideView: View {
             .padding(24)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .background(KorbiTheme.Colors.background)
+        .background(settings.palette.background)
         .navigationTitle("Korbi Styleguide")
     }
 
@@ -27,9 +31,10 @@ struct StyleGuideView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Korbi Design DNA")
                 .font(KorbiTheme.Typography.largeTitle())
+                .foregroundStyle(settings.palette.textPrimary)
             Text("Eine ruhige, freundliche Einkaufserfahrung für Zuhause. Sanfte Naturtöne, runde Formen und klare Typografie schaffen Vertrauen und Alltagstauglichkeit.")
                 .font(KorbiTheme.Typography.body())
-                .foregroundStyle(KorbiTheme.Colors.textSecondary)
+                .foregroundStyle(settings.palette.textSecondary)
         }
     }
 
@@ -37,6 +42,7 @@ struct StyleGuideView: View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Farben")
                 .font(KorbiTheme.Typography.title())
+                .foregroundStyle(settings.palette.textPrimary)
             VStack(alignment: .leading, spacing: 18) {
                 ForEach(palette, id: \.name) { swatch in
                     HStack(spacing: 16) {
@@ -45,14 +51,15 @@ struct StyleGuideView: View {
                             .frame(width: 64, height: 64)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                    .stroke(KorbiTheme.Colors.outline.opacity(0.5), lineWidth: 1)
+                                    .stroke(settings.palette.outline.opacity(0.5), lineWidth: 1)
                             )
                         VStack(alignment: .leading, spacing: 6) {
                             Text(swatch.name)
                                 .font(KorbiTheme.Typography.body(weight: .semibold))
-                            Text(swatch.hex)
+                                .foregroundStyle(settings.palette.textPrimary)
+                            Text(swatch.description)
                                 .font(KorbiTheme.Typography.caption())
-                                .foregroundStyle(KorbiTheme.Colors.textSecondary)
+                                .foregroundStyle(settings.palette.textSecondary)
                         }
                     }
                 }
@@ -64,14 +71,17 @@ struct StyleGuideView: View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Typografie")
                 .font(KorbiTheme.Typography.title())
+                .foregroundStyle(settings.palette.textPrimary)
             VStack(alignment: .leading, spacing: 12) {
                 Text("SF Pro Rounded / Display")
                     .font(KorbiTheme.Typography.largeTitle())
+                    .foregroundStyle(settings.palette.textPrimary)
                 Text("SF Pro Text")
                     .font(KorbiTheme.Typography.body(weight: .medium))
+                    .foregroundStyle(settings.palette.textPrimary)
                 Text("Klar, freundlich und vertraut. Anpassbar für dynamische Schriftgrößen.")
                     .font(KorbiTheme.Typography.body())
-                    .foregroundStyle(KorbiTheme.Colors.textSecondary)
+                    .foregroundStyle(settings.palette.textSecondary)
             }
         }
     }
@@ -80,20 +90,22 @@ struct StyleGuideView: View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Komponenten")
                 .font(KorbiTheme.Typography.title())
+                .foregroundStyle(settings.palette.textPrimary)
             VStack(alignment: .leading, spacing: 18) {
                 KorbiCard {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Buttons")
                             .font(KorbiTheme.Typography.body(weight: .semibold))
+                            .foregroundStyle(settings.palette.textPrimary)
                         HStack(spacing: 16) {
                             Button("Primär") {}
                                 .buttonStyle(.borderedProminent)
-                                .tint(KorbiTheme.Colors.primary)
+                                .tint(settings.palette.primary)
                                 .controlSize(.large)
                                 .clipShape(RoundedRectangle(cornerRadius: KorbiTheme.Metrics.compactCornerRadius, style: .continuous))
                             Button("Sekundär") {}
                                 .buttonStyle(.bordered)
-                                .tint(KorbiTheme.Colors.primary)
+                                .tint(settings.palette.primary)
                                 .controlSize(.large)
                                 .clipShape(RoundedRectangle(cornerRadius: KorbiTheme.Metrics.compactCornerRadius, style: .continuous))
                         }
@@ -104,9 +116,10 @@ struct StyleGuideView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Cards")
                             .font(KorbiTheme.Typography.body(weight: .semibold))
+                            .foregroundStyle(settings.palette.textPrimary)
                         Text("Weiche Schatten, großzügige Abstände und klare Hierarchie für schnelle Scans im Alltag.")
                             .font(KorbiTheme.Typography.body())
-                            .foregroundStyle(KorbiTheme.Colors.textSecondary)
+                            .foregroundStyle(settings.palette.textSecondary)
                     }
                 }
 
@@ -114,11 +127,12 @@ struct StyleGuideView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Voice Entry")
                             .font(KorbiTheme.Typography.body(weight: .semibold))
+                            .foregroundStyle(settings.palette.textPrimary)
                         HStack {
                             FloatingMicButton()
                             Text("Zentral platzierter Sprachbutton für freihändiges Hinzufügen.")
                                 .font(KorbiTheme.Typography.body())
-                                .foregroundStyle(KorbiTheme.Colors.textSecondary)
+                                .foregroundStyle(settings.palette.textSecondary)
                         }
                     }
                 }
@@ -130,5 +144,6 @@ struct StyleGuideView: View {
 #Preview {
     NavigationStack {
         StyleGuideView()
+            .environmentObject(KorbiSettings())
     }
 }

@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct ContentView: View {
+    @EnvironmentObject private var settings: KorbiSettings
+
     init() {
         UITabBar.appearance().backgroundColor = UIColor.clear
     }
@@ -24,11 +26,12 @@ struct ContentView: View {
                     Label("Einstellungen", systemImage: "gearshape.fill")
                 }
         }
-        .tint(KorbiTheme.Colors.primary)
-        .background(KorbiTheme.Colors.background)
+        .tint(settings.palette.primary)
+        .background(settings.palette.background)
     }
 }
 
 #Preview {
     ContentView()
+        .environmentObject(KorbiSettings())
 }
