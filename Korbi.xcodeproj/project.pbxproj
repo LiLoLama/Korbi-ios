@@ -1,0 +1,464 @@
+// !$*UTF8*$!
+{
+archiveVersion = 1;
+classes = {};
+objectVersion = 56;
+objects = {
+
+/* Begin PBXBuildFile section */
+1234567890ABCDEF00001001 /* KorbiApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1234567890ABCDEF00002001 /* KorbiApp.swift */; };
+1234567890ABCDEF00001002 /* CompositionRoot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1234567890ABCDEF00002002 /* CompositionRoot.swift */; };
+1234567890ABCDEF00001003 /* DesignTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1234567890ABCDEF00002003 /* DesignTokens.swift */; };
+1234567890ABCDEF00001004 /* PrimaryButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1234567890ABCDEF00002004 /* PrimaryButton.swift */; };
+1234567890ABCDEF00001005 /* MicButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1234567890ABCDEF00002005 /* MicButton.swift */; };
+1234567890ABCDEF00001006 /* ItemRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1234567890ABCDEF00002006 /* ItemRow.swift */; };
+1234567890ABCDEF00001007 /* Banner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1234567890ABCDEF00002007 /* Banner.swift */; };
+1234567890ABCDEF00001008 /* EmptyState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1234567890ABCDEF00002008 /* EmptyState.swift */; };
+1234567890ABCDEF00001009 /* SectionHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1234567890ABCDEF00002009 /* SectionHeader.swift */; };
+1234567890ABCDEF0000100A /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1234567890ABCDEF0000200A /* HomeView.swift */; };
+1234567890ABCDEF0000100B /* HomeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1234567890ABCDEF0000200B /* HomeViewModel.swift */; };
+1234567890ABCDEF0000100C /* ListsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1234567890ABCDEF0000200C /* ListsView.swift */; };
+1234567890ABCDEF0000100D /* ListDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1234567890ABCDEF0000200D /* ListDetailView.swift */; };
+1234567890ABCDEF0000100E /* ListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1234567890ABCDEF0000200E /* ListViewModel.swift */; };
+1234567890ABCDEF0000100F /* HouseholdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1234567890ABCDEF0000200F /* HouseholdView.swift */; };
+1234567890ABCDEF00001010 /* HouseholdViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1234567890ABCDEF00002010 /* HouseholdViewModel.swift */; };
+1234567890ABCDEF00001011 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1234567890ABCDEF00002011 /* SettingsView.swift */; };
+1234567890ABCDEF00001012 /* SettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1234567890ABCDEF00002012 /* SettingsViewModel.swift */; };
+1234567890ABCDEF00001013 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1234567890ABCDEF00002013 /* Models.swift */; };
+1234567890ABCDEF00001014 /* MockData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1234567890ABCDEF00002014 /* MockData.swift */; };
+1234567890ABCDEF00001015 /* FakeServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1234567890ABCDEF00002015 /* FakeServices.swift */; };
+1234567890ABCDEF00001016 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1234567890ABCDEF00002016 /* Extensions.swift */; };
+1234567890ABCDEF00001017 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1234567890ABCDEF00002017 /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+1234567890ABCDEF00002001 /* KorbiApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KorbiApp.swift; sourceTree = "<group>"; };
+1234567890ABCDEF00002002 /* CompositionRoot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompositionRoot.swift; sourceTree = "<group>"; };
+1234567890ABCDEF00002003 /* DesignTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignTokens.swift; sourceTree = "<group>"; };
+1234567890ABCDEF00002004 /* PrimaryButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrimaryButton.swift; sourceTree = "<group>"; };
+1234567890ABCDEF00002005 /* MicButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicButton.swift; sourceTree = "<group>"; };
+1234567890ABCDEF00002006 /* ItemRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemRow.swift; sourceTree = "<group>"; };
+1234567890ABCDEF00002007 /* Banner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Banner.swift; sourceTree = "<group>"; };
+1234567890ABCDEF00002008 /* EmptyState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyState.swift; sourceTree = "<group>"; };
+1234567890ABCDEF00002009 /* SectionHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionHeader.swift; sourceTree = "<group>"; };
+1234567890ABCDEF0000200A /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+1234567890ABCDEF0000200B /* HomeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeViewModel.swift; sourceTree = "<group>"; };
+1234567890ABCDEF0000200C /* ListsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListsView.swift; sourceTree = "<group>"; };
+1234567890ABCDEF0000200D /* ListDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListDetailView.swift; sourceTree = "<group>"; };
+1234567890ABCDEF0000200E /* ListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListViewModel.swift; sourceTree = "<group>"; };
+1234567890ABCDEF0000200F /* HouseholdView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HouseholdView.swift; sourceTree = "<group>"; };
+1234567890ABCDEF00002010 /* HouseholdViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HouseholdViewModel.swift; sourceTree = "<group>"; };
+1234567890ABCDEF00002011 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+1234567890ABCDEF00002012 /* SettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewModel.swift; sourceTree = "<group>"; };
+1234567890ABCDEF00002013 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+1234567890ABCDEF00002014 /* MockData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockData.swift; sourceTree = "<group>"; };
+1234567890ABCDEF00002015 /* FakeServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FakeServices.swift; sourceTree = "<group>"; };
+1234567890ABCDEF00002016 /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
+1234567890ABCDEF00002017 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+1234567890ABCDEF00002018 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+1234567890ABCDEF00002019 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = SOURCE_ROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+1234567890ABCDEF00000004 /* Frameworks */ = {
+isa = PBXFrameworksBuildPhase;
+buildActionMask = 2147483647;
+files = (
+);
+runOnlyForDeploymentPostprocessing = 0;
+};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+1234567890ABCDEF00003000 = {
+isa = PBXGroup;
+children = (
+1234567890ABCDEF00003001 /* Sources */,
+1234567890ABCDEF00002017 /* Assets.xcassets */,
+1234567890ABCDEF00002019 /* README.md */,
+);
+sourceTree = SOURCE_ROOT;
+};
+1234567890ABCDEF00003001 /* Sources */ = {
+isa = PBXGroup;
+children = (
+1234567890ABCDEF00003002 /* App */,
+1234567890ABCDEF00003003 /* DesignSystem */,
+1234567890ABCDEF00003004 /* Features */,
+1234567890ABCDEF00003005 /* Utils */,
+);
+path = Sources;
+sourceTree = "<group>";
+};
+1234567890ABCDEF00003002 /* App */ = {
+isa = PBXGroup;
+children = (
+1234567890ABCDEF00002001 /* KorbiApp.swift */,
+1234567890ABCDEF00002002 /* CompositionRoot.swift */,
+1234567890ABCDEF00002018 /* Info.plist */,
+);
+path = App;
+sourceTree = "<group>";
+};
+1234567890ABCDEF00003003 /* DesignSystem */ = {
+isa = PBXGroup;
+children = (
+1234567890ABCDEF00002003 /* DesignTokens.swift */,
+1234567890ABCDEF00003006 /* Components */,
+);
+path = DesignSystem;
+sourceTree = "<group>";
+};
+1234567890ABCDEF00003004 /* Features */ = {
+isa = PBXGroup;
+children = (
+1234567890ABCDEF00003007 /* Home */,
+1234567890ABCDEF00003008 /* Lists */,
+1234567890ABCDEF00003009 /* Household */,
+1234567890ABCDEF0000300A /* Settings */,
+1234567890ABCDEF0000300B /* Common */,
+);
+path = Features;
+sourceTree = "<group>";
+};
+1234567890ABCDEF00003005 /* Utils */ = {
+isa = PBXGroup;
+children = (
+1234567890ABCDEF00002016 /* Extensions.swift */,
+);
+path = Utils;
+sourceTree = "<group>";
+};
+1234567890ABCDEF00003006 /* Components */ = {
+isa = PBXGroup;
+children = (
+1234567890ABCDEF00002004 /* PrimaryButton.swift */,
+1234567890ABCDEF00002005 /* MicButton.swift */,
+1234567890ABCDEF00002006 /* ItemRow.swift */,
+1234567890ABCDEF00002007 /* Banner.swift */,
+1234567890ABCDEF00002008 /* EmptyState.swift */,
+1234567890ABCDEF00002009 /* SectionHeader.swift */,
+);
+path = Components;
+sourceTree = "<group>";
+};
+1234567890ABCDEF00003007 /* Home */ = {
+isa = PBXGroup;
+children = (
+1234567890ABCDEF0000200A /* HomeView.swift */,
+1234567890ABCDEF0000200B /* HomeViewModel.swift */,
+);
+path = Home;
+sourceTree = "<group>";
+};
+1234567890ABCDEF00003008 /* Lists */ = {
+isa = PBXGroup;
+children = (
+1234567890ABCDEF0000200C /* ListsView.swift */,
+1234567890ABCDEF0000200D /* ListDetailView.swift */,
+1234567890ABCDEF0000200E /* ListViewModel.swift */,
+);
+path = Lists;
+sourceTree = "<group>";
+};
+1234567890ABCDEF00003009 /* Household */ = {
+isa = PBXGroup;
+children = (
+1234567890ABCDEF0000200F /* HouseholdView.swift */,
+1234567890ABCDEF00002010 /* HouseholdViewModel.swift */,
+);
+path = Household;
+sourceTree = "<group>";
+};
+1234567890ABCDEF0000300A /* Settings */ = {
+isa = PBXGroup;
+children = (
+1234567890ABCDEF00002011 /* SettingsView.swift */,
+1234567890ABCDEF00002012 /* SettingsViewModel.swift */,
+);
+path = Settings;
+sourceTree = "<group>";
+};
+1234567890ABCDEF0000300B /* Common */ = {
+isa = PBXGroup;
+children = (
+1234567890ABCDEF00002013 /* Models.swift */,
+1234567890ABCDEF00002014 /* MockData.swift */,
+1234567890ABCDEF00002015 /* FakeServices.swift */,
+);
+path = Common;
+sourceTree = "<group>";
+};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+1234567890ABCDEF00000002 /* Korbi */ = {
+isa = PBXNativeTarget;
+buildConfigurationList = 1234567890ABCDEF00004001 /* Build configuration list for PBXNativeTarget "Korbi" */;
+buildPhases = (
+1234567890ABCDEF00000003 /* Sources */,
+1234567890ABCDEF00000004 /* Frameworks */,
+1234567890ABCDEF00000005 /* Resources */,
+);
+buildRules = (
+);
+dependencies = (
+);
+name = Korbi;
+productName = Korbi;
+productType = "com.apple.product-type.application";
+};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+1234567890ABCDEF00000001 /* Project object */ = {
+isa = PBXProject;
+attributes = {
+BuildIndependentTargetsInParallel = 1;
+LastSwiftUpdateCheck = 1500;
+LastUpgradeCheck = 1500;
+TargetAttributes = {
+1234567890ABCDEF00000002 = {
+CreatedOnToolsVersion = 15.0;
+};
+};
+};
+buildConfigurationList = 1234567890ABCDEF00004000 /* Build configuration list for PBXProject "Korbi" */;
+compatibilityVersion = "Xcode 15.0";
+developmentRegion = de;
+hasScannedForEncodings = 0;
+knownRegions = (
+de,
+en,
+);
+mainGroup = 1234567890ABCDEF00003000;
+productRefGroup = 1234567890ABCDEF00003000;
+projectDirPath = "";
+projectRoot = "";
+targets = (
+1234567890ABCDEF00000002 /* Korbi */,
+);
+};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+1234567890ABCDEF00000005 /* Resources */ = {
+isa = PBXResourcesBuildPhase;
+buildActionMask = 2147483647;
+files = (
+1234567890ABCDEF00001017 /* Assets.xcassets in Resources */,
+);
+runOnlyForDeploymentPostprocessing = 0;
+};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+1234567890ABCDEF00000003 /* Sources */ = {
+isa = PBXSourcesBuildPhase;
+buildActionMask = 2147483647;
+files = (
+1234567890ABCDEF00001015 /* FakeServices.swift in Sources */,
+1234567890ABCDEF00001012 /* SettingsViewModel.swift in Sources */,
+1234567890ABCDEF0000100C /* ListsView.swift in Sources */,
+1234567890ABCDEF00001005 /* MicButton.swift in Sources */,
+1234567890ABCDEF00001009 /* SectionHeader.swift in Sources */,
+1234567890ABCDEF0000100E /* ListViewModel.swift in Sources */,
+1234567890ABCDEF00001003 /* DesignTokens.swift in Sources */,
+1234567890ABCDEF00001002 /* CompositionRoot.swift in Sources */,
+1234567890ABCDEF0000100A /* HomeView.swift in Sources */,
+1234567890ABCDEF00001004 /* PrimaryButton.swift in Sources */,
+1234567890ABCDEF00001011 /* SettingsView.swift in Sources */,
+1234567890ABCDEF00001016 /* Extensions.swift in Sources */,
+1234567890ABCDEF0000100B /* HomeViewModel.swift in Sources */,
+1234567890ABCDEF00001007 /* Banner.swift in Sources */,
+1234567890ABCDEF00001006 /* ItemRow.swift in Sources */,
+1234567890ABCDEF0000100F /* HouseholdView.swift in Sources */,
+1234567890ABCDEF00001010 /* HouseholdViewModel.swift in Sources */,
+1234567890ABCDEF00001013 /* Models.swift in Sources */,
+1234567890ABCDEF00001014 /* MockData.swift in Sources */,
+1234567890ABCDEF0000100D /* ListDetailView.swift in Sources */,
+1234567890ABCDEF00001008 /* EmptyState.swift in Sources */,
+1234567890ABCDEF00001001 /* KorbiApp.swift in Sources */,
+);
+runOnlyForDeploymentPostprocessing = 0;
+};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+1234567890ABCDEF00004002 /* Debug */ = {
+isa = XCBuildConfiguration;
+buildSettings = {
+ALWAYS_SEARCH_USER_PATHS = NO;
+ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+CLANG_ANALYZER_NONNULL = YES;
+CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+CLANG_ENABLE_MODULES = YES;
+CLANG_ENABLE_OBJC_ARC = YES;
+CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+CLANG_WARN_BOOL_CONVERSION = YES;
+CLANG_WARN_COMMA = YES;
+CLANG_WARN_CONSTANT_CONVERSION = YES;
+CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+CLANG_WARN_EMPTY_BODY = YES;
+CLANG_WARN_ENUM_CONVERSION = YES;
+CLANG_WARN_INFINITE_RECURSION = YES;
+CLANG_WARN_INT_CONVERSION = YES;
+CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+CLANG_WARN_STRICT_PROTOTYPES = YES;
+CLANG_WARN_SUSPICIOUS_MOVE = YES;
+CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+CLANG_WARN_UNREACHABLE_CODE = YES;
+CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+COPY_PHASE_STRIP = NO;
+DEBUG_INFORMATION_FORMAT = dwarf;
+ENABLE_STRICT_OBJC_MSGSEND = YES;
+ENABLE_TESTABILITY = YES;
+GCC_C_LANGUAGE_STANDARD = gnu17;
+GCC_DYNAMIC_NO_PIC = NO;
+GCC_NO_COMMON_BLOCKS = YES;
+GCC_OPTIMIZATION_LEVEL = 0;
+GCC_PREPROCESSOR_DEFINITIONS = (
+"DEBUG=1",
+"$(inherited)",
+);
+GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+GCC_WARN_UNDECLARED_SELECTOR = YES;
+GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+GCC_WARN_UNUSED_FUNCTION = YES;
+GCC_WARN_UNUSED_VARIABLE = YES;
+IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+ONLY_ACTIVE_ARCH = YES;
+SDKROOT = iphoneos;
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+};
+name = Debug;
+};
+1234567890ABCDEF00004003 /* Release */ = {
+isa = XCBuildConfiguration;
+buildSettings = {
+ALWAYS_SEARCH_USER_PATHS = NO;
+ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+CLANG_ANALYZER_NONNULL = YES;
+CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+CLANG_ENABLE_MODULES = YES;
+CLANG_ENABLE_OBJC_ARC = YES;
+CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+CLANG_WARN_BOOL_CONVERSION = YES;
+CLANG_WARN_COMMA = YES;
+CLANG_WARN_CONSTANT_CONVERSION = YES;
+CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+CLANG_WARN_EMPTY_BODY = YES;
+CLANG_WARN_ENUM_CONVERSION = YES;
+CLANG_WARN_INFINITE_RECURSION = YES;
+CLANG_WARN_INT_CONVERSION = YES;
+CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+CLANG_WARN_STRICT_PROTOTYPES = YES;
+CLANG_WARN_SUSPICIOUS_MOVE = YES;
+CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+CLANG_WARN_UNREACHABLE_CODE = YES;
+CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+COPY_PHASE_STRIP = NO;
+DEBUG_INFORMATION_FORMAT = dwarf;
+ENABLE_NS_ASSERTIONS = NO;
+ENABLE_STRICT_OBJC_MSGSEND = YES;
+GCC_C_LANGUAGE_STANDARD = gnu17;
+GCC_NO_COMMON_BLOCKS = YES;
+GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+GCC_WARN_UNDECLARED_SELECTOR = YES;
+GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+GCC_WARN_UNUSED_FUNCTION = YES;
+GCC_WARN_UNUSED_VARIABLE = YES;
+IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+MTL_ENABLE_DEBUG_INFO = NO;
+SDKROOT = iphoneos;
+SWIFT_COMPILATION_MODE = wholemodule;
+SWIFT_OPTIMIZATION_LEVEL = "-O";
+};
+name = Release;
+};
+1234567890ABCDEF00004004 /* Debug */ = {
+isa = XCBuildConfiguration;
+buildSettings = {
+ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+CODE_SIGN_STYLE = Automatic;
+CURRENT_PROJECT_VERSION = 1;
+DEVELOPMENT_ASSET_PATHS = "";
+DEVELOPMENT_TEAM = "";
+INFOPLIST_FILE = Sources/App/Info.plist;
+IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+MARKETING_VERSION = 1.0;
+PRODUCT_BUNDLE_IDENTIFIER = com.example.Korbi;
+PRODUCT_NAME = "$(TARGET_NAME)";
+SWIFT_EMIT_LOC_STRINGS = YES;
+SWIFT_VERSION = 5.0;
+TARGETED_DEVICE_FAMILY = "1,2";
+};
+name = Debug;
+};
+1234567890ABCDEF00004005 /* Release */ = {
+isa = XCBuildConfiguration;
+buildSettings = {
+ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+CODE_SIGN_STYLE = Automatic;
+CURRENT_PROJECT_VERSION = 1;
+DEVELOPMENT_ASSET_PATHS = "";
+DEVELOPMENT_TEAM = "";
+INFOPLIST_FILE = Sources/App/Info.plist;
+IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+MARKETING_VERSION = 1.0;
+PRODUCT_BUNDLE_IDENTIFIER = com.example.Korbi;
+PRODUCT_NAME = "$(TARGET_NAME)";
+SWIFT_EMIT_LOC_STRINGS = YES;
+SWIFT_VERSION = 5.0;
+TARGETED_DEVICE_FAMILY = "1,2";
+};
+name = Release;
+};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+1234567890ABCDEF00004000 /* Build configuration list for PBXProject "Korbi" */ = {
+isa = XCConfigurationList;
+buildConfigurations = (
+1234567890ABCDEF00004002 /* Debug */,
+1234567890ABCDEF00004003 /* Release */,
+);
+defaultConfigurationIsVisible = 0;
+defaultConfigurationName = Debug;
+};
+1234567890ABCDEF00004001 /* Build configuration list for PBXNativeTarget "Korbi" */ = {
+isa = XCConfigurationList;
+buildConfigurations = (
+1234567890ABCDEF00004004 /* Debug */,
+1234567890ABCDEF00004005 /* Release */,
+);
+defaultConfigurationIsVisible = 0;
+defaultConfigurationName = Debug;
+};
+/* End XCConfigurationList section */
+
+};
+rootObject = 1234567890ABCDEF00000001 /* Project object */;
+}
