@@ -6,6 +6,15 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
+                Section(header: Text("Profil").font(KorbiTheme.Typography.title())) {
+                    Button {
+                    } label: {
+                        Label("Profil bearbeiten", systemImage: "person.crop.circle")
+                            .font(KorbiTheme.Typography.body(weight: .semibold))
+                            .foregroundStyle(settings.palette.primary)
+                    }
+                }
+
                 Section(header: Text("Haushalt").font(KorbiTheme.Typography.title())) {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Name")
