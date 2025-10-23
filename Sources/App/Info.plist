@@ -6,12 +6,16 @@
     <string>Korbi</string>
     <key>CFBundleDisplayName</key>
     <string>Korbi</string>
+    <key>CFBundleExecutable</key>
+    <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>
     <string>com.example.Korbi</string>
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>CFBundleShortVersionString</key>
     <string>1.0</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
     <key>UILaunchStoryboardName</key>
     <string></string>
     <key>UIApplicationSceneManifest</key>
