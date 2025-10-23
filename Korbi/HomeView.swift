@@ -87,31 +87,28 @@ struct HomeView: View {
                     .foregroundStyle(settings.palette.textPrimary)
             }
 
-            ScrollView(showsIndicators: true) {
-                LazyVStack(spacing: 16) {
-                    ForEach(todayItems) { item in
-                        KorbiCard {
-                            HStack(alignment: .center, spacing: 16) {
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text(item.name)
-                                        .font(KorbiTheme.Typography.body(weight: .semibold))
-                                        .foregroundStyle(settings.palette.textPrimary)
-                                    Text(item.quantity)
-                                        .font(KorbiTheme.Typography.caption())
-                                        .foregroundStyle(settings.palette.primary.opacity(0.75))
-                                }
-                                Spacer()
+            VStack(spacing: 16) {
+                ForEach(todayItems) { item in
+                    KorbiCard {
+                        HStack(alignment: .center, spacing: 16) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(item.name)
+                                    .font(KorbiTheme.Typography.body(weight: .semibold))
+                                    .foregroundStyle(settings.palette.textPrimary)
+                                Text(item.quantity)
+                                    .font(KorbiTheme.Typography.caption())
+                                    .foregroundStyle(settings.palette.primary.opacity(0.75))
+                            }
+                            Spacer()
 
-                                if item.isUrgent {
-                                    PillTag(text: "Frisch", systemImage: "sun.max")
-                                }
+                            if item.isUrgent {
+                                PillTag(text: "Frisch", systemImage: "sun.max")
                             }
                         }
                     }
                 }
-                .padding(.vertical, 1)
             }
-            .frame(maxHeight: 260)
+            .padding(.vertical, 1)
         }
     }
 }
