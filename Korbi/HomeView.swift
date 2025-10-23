@@ -20,7 +20,7 @@ struct HomeView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .bottom) {
+            ZStack {
                 KorbiBackground()
 
                 ScrollView(showsIndicators: false) {
@@ -30,11 +30,13 @@ struct HomeView: View {
                     }
                     .padding(.horizontal, 24)
                     .padding(.top, 16)
-                    .padding(.bottom, 120)
                 }
-
-                FloatingMicButton()
-                    .padding(.bottom, 40)
+                .safeAreaInset(edge: .bottom) {
+                    FloatingMicButton()
+                        .padding(.top, 16)
+                        .padding(.bottom, 24)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
             }
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarBackground(settings.palette.background.opacity(0.85), for: .navigationBar)
