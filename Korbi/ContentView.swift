@@ -1,61 +1,34 @@
-//
-//  ContentView.swift
-//  Korbi
-//
-//  Created by Liam Schmid on 23.10.25.
-//
-
 import SwiftUI
-import SwiftData
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+    init() {
+        UITabBar.appearance().backgroundColor = UIColor.clear
+    }
 
     var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
-                    }
+        TabView {
+            HomeView()
+                .tabItem {
+                    Label("Home", systemImage: "house.fill")
                 }
-                .onDelete(perform: deleteItems)
-            }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
+            ListsView()
+                .tabItem {
+                    Label("Listen", systemImage: "list.bullet.rectangle.portrait")
                 }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
+            HouseholdView()
+                .tabItem {
+                    Label("Haushalt", systemImage: "person.3.fill")
                 }
-            }
-        } detail: {
-            Text("Select an item")
+            SettingsView()
+                .tabItem {
+                    Label("Einstellungen", systemImage: "gearshape.fill")
+                }
         }
-    }
-
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
-        }
-    }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
-            }
-        }
+        .tint(KorbiTheme.Colors.primary)
+        .background(KorbiTheme.Colors.background)
     }
 }
 
 #Preview {
     ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
 }
