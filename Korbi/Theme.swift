@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 
 enum KorbiTheme {
     enum Metrics {
@@ -106,26 +107,121 @@ struct PillTag: View {
 
 struct FloatingMicButton: View {
     @EnvironmentObject private var settings: KorbiSettings
-    var action: () -> Void = {}
+    private let providedWebhookURL: URL?
+    @StateObject private var recorder = VoiceRecorder()
+    @State private var isPulsing = false
+
+    private var activeWebhookURL: URL {
+        providedWebhookURL ?? settings.voiceRecordingWebhookURL
+    }
+
+    private var pulseAnimation: Animation {
+        .easeInOut(duration: 0.9).repeatForever(autoreverses: true)
+    }
+
+    init(webhookURL: URL? = nil) {
+        self.providedWebhookURL = webhookURL
+    }
 
     var body: some View {
-        Button(action: action) {
-            Image(systemName: "mic.fill")
-                .font(.system(size: 24, weight: .semibold))
-                .foregroundStyle(.white)
-                .padding(26)
-                .background(
+        VStack(spacing: 12) {
+            Button(action: toggleRecording) {
+                ZStack {
                     Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [settings.palette.primary, settings.palette.primary.opacity(0.85)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .shadow(color: settings.palette.primary.opacity(0.35), radius: 20, x: 0, y: 18)
-                )
+                        .fill(backgroundFill)
+                        .scaleEffect(recorder.isRecording && isPulsing ? 1.12 : 1.0)
+                        .shadow(color: shadowColor, radius: 20, x: 0, y: 18)
+
+                    if recorder.isSending {
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                            .tint(.white)
+                    } else {
+                        Image(systemName: recorder.isRecording ? "stop.fill" : "mic.fill")
+                            .font(.system(size: 26, weight: .semibold))
+                            .foregroundStyle(.white)
+                    }
+                }
+                .frame(width: 84, height: 84)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(recorder.isRecording ? "Aufnahme stoppen" : "Aufnahme starten")
+            .disabled(recorder.isSending)
+            .onChange(of: recorder.isRecording) { recording in
+                if recording {
+                    withAnimation(pulseAnimation) { isPulsing = true }
+                } else {
+                    withAnimation(.easeOut(duration: 0.2)) { isPulsing = false }
+                }
+            }
+
+            feedbackMessages
         }
-        .accessibilityLabel("Add with voice")
+        .onAppear(perform: configureRecorder)
+        .onChange(of: providedWebhookURL) { _ in configureRecorder() }
+        .onChange(of: settings.voiceRecordingWebhookURL) { _ in configureRecorder() }
+    }
+
+    private var backgroundFill: LinearGradient {
+        if recorder.isRecording {
+            return LinearGradient(
+                colors: [Color.red, Color.red.opacity(0.85)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        } else {
+            return LinearGradient(
+                colors: [settings.palette.primary, settings.palette.primary.opacity(0.85)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
+    }
+
+    private var shadowColor: Color {
+        recorder.isRecording
+            ? Color.red.opacity(0.4)
+            : settings.palette.primary.opacity(0.35)
+    }
+
+    private var feedbackMessages: some View {
+        VStack(spacing: 6) {
+            if let success = recorder.successMessage {
+                feedbackLabel(text: success, foreground: .white, background: settings.palette.primary)
+            }
+
+            if let error = recorder.errorMessage {
+                feedbackLabel(text: error, foreground: .white, background: Color.red)
+            }
+        }
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: recorder.successMessage)
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: recorder.errorMessage)
+    }
+
+    private func feedbackLabel(text: String, foreground: Color, background: Color) -> some View {
+        Text(text)
+            .font(KorbiTheme.Typography.caption())
+            .foregroundStyle(foreground)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(background.opacity(0.92))
+            )
+            .shadow(color: background.opacity(0.2), radius: 12, x: 0, y: 6)
+            .transition(.move(edge: .top).combined(with: .opacity))
+    }
+
+    private func toggleRecording() {
+        if recorder.isRecording {
+            recorder.stopRecording()
+        } else {
+            configureRecorder()
+            recorder.startRecording()
+        }
+    }
+
+    private func configureRecorder() {
+        recorder.configure(webhookURL: activeWebhookURL)
     }
 }

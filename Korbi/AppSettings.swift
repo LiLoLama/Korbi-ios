@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 
 struct KorbiColorPalette {
     let primary: Color
@@ -41,6 +42,8 @@ final class KorbiSettings: ObservableObject {
     @Published private(set) var recentPurchases: [String]
     @Published private(set) var palette: KorbiColorPalette
 
+    let voiceRecordingWebhookURL: URL
+
     init(
         householdName: String = "Mein Haushalt",
         useWarmLightMode: Bool = false,
@@ -57,12 +60,14 @@ final class KorbiSettings: ObservableObject {
             "Kaffee",
             "Joghurt",
             "Nudeln"
-        ]
+        ],
+        voiceRecordingWebhookURL: URL = URL(string: "https://korbi-webhook.example/api/voice")!
     ) {
         self.householdName = householdName
         self.useWarmLightMode = useWarmLightMode
         self.recentPurchases = recentPurchases
         self.palette = useWarmLightMode ? .warmLight : .serene
+        self.voiceRecordingWebhookURL = voiceRecordingWebhookURL
     }
 
     func recordPurchase(_ item: String) {
