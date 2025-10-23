@@ -1,16 +1,6 @@
 import SwiftUI
 
 enum KorbiTheme {
-    enum Colors {
-        static let primary = Color("PrimaryGreen")
-        static let background = Color("NeutralBackground")
-        static let card = Color("NeutralCard")
-        static let accent = Color("AccentSand")
-        static let outline = Color("OutlineMist")
-        static let textPrimary = Color.primary
-        static let textSecondary = Color.primary.opacity(0.6)
-    }
-
     enum Metrics {
         static let cornerRadius: CGFloat = 24
         static let compactCornerRadius: CGFloat = 18
@@ -39,13 +29,12 @@ enum KorbiTheme {
 }
 
 struct KorbiBackground: View {
+    @EnvironmentObject private var settings: KorbiSettings
+
     var body: some View {
         GeometryReader { geometry in
             let gradient = LinearGradient(
-                colors: [
-                    KorbiTheme.Colors.background.opacity(1.0),
-                    KorbiTheme.Colors.background.opacity(0.92)
-                ],
+                colors: settings.backgroundGradient,
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -53,15 +42,15 @@ struct KorbiBackground: View {
             gradient
                 .overlay(
                     Circle()
-                        .fill(KorbiTheme.Colors.accent.opacity(0.25))
-                        .blur(radius: 120)
+                        .fill(settings.palette.accent.opacity(settings.useWarmLightMode ? 0.35 : 0.25))
+                        .blur(radius: settings.useWarmLightMode ? 160 : 120)
                         .frame(width: geometry.size.width * 0.8)
                         .offset(x: geometry.size.width * 0.35, y: -geometry.size.height * 0.15)
                 )
                 .overlay(
                     Circle()
-                        .fill(KorbiTheme.Colors.primary.opacity(0.08))
-                        .blur(radius: 160)
+                        .fill(settings.palette.primary.opacity(settings.useWarmLightMode ? 0.12 : 0.08))
+                        .blur(radius: settings.useWarmLightMode ? 180 : 160)
                         .frame(width: geometry.size.width * 0.9)
                         .offset(x: -geometry.size.width * 0.4, y: geometry.size.height * 0.55)
                 )
@@ -71,6 +60,7 @@ struct KorbiBackground: View {
 }
 
 struct KorbiCard<Content: View>: View {
+    @EnvironmentObject private var settings: KorbiSettings
     let spacing: CGFloat
     @ViewBuilder var content: Content
 
@@ -86,19 +76,21 @@ struct KorbiCard<Content: View>: View {
         .padding(KorbiTheme.Metrics.cardPadding)
         .background(
             RoundedRectangle(cornerRadius: KorbiTheme.Metrics.cornerRadius, style: .continuous)
-                .fill(KorbiTheme.Colors.card)
-                .shadow(color: Color.black.opacity(0.08), radius: KorbiTheme.Metrics.shadowRadius, x: 0, y: 12)
+                .fill(settings.palette.card)
+                .shadow(color: Color.black.opacity(settings.useWarmLightMode ? 0.05 : 0.08), radius: KorbiTheme.Metrics.shadowRadius, x: 0, y: 12)
         )
         .overlay(
             RoundedRectangle(cornerRadius: KorbiTheme.Metrics.cornerRadius, style: .continuous)
-                .stroke(KorbiTheme.Colors.outline.opacity(0.4), lineWidth: 1)
+                .stroke(settings.palette.outline.opacity(settings.useWarmLightMode ? 0.5 : 0.4), lineWidth: 1)
         )
     }
 }
 
 struct PillTag: View {
+    @EnvironmentObject private var settings: KorbiSettings
     let text: String
     let systemImage: String
+
     var body: some View {
         Label(text, systemImage: systemImage)
             .font(KorbiTheme.Typography.caption())
@@ -106,12 +98,14 @@ struct PillTag: View {
             .padding(.vertical, 8)
             .background(
                 Capsule(style: .continuous)
-                    .fill(KorbiTheme.Colors.accent.opacity(0.35))
+                    .fill(settings.palette.accent.opacity(0.35))
             )
+            .foregroundStyle(settings.palette.primary)
     }
 }
 
 struct FloatingMicButton: View {
+    @EnvironmentObject private var settings: KorbiSettings
     var action: () -> Void = {}
 
     var body: some View {
@@ -124,12 +118,12 @@ struct FloatingMicButton: View {
                     Circle()
                         .fill(
                             LinearGradient(
-                                colors: [KorbiTheme.Colors.primary, KorbiTheme.Colors.primary.opacity(0.85)],
+                                colors: [settings.palette.primary, settings.palette.primary.opacity(0.85)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
                         )
-                        .shadow(color: KorbiTheme.Colors.primary.opacity(0.35), radius: 20, x: 0, y: 18)
+                        .shadow(color: settings.palette.primary.opacity(0.35), radius: 20, x: 0, y: 18)
                 )
         }
         .accessibilityLabel("Add with voice")

@@ -9,6 +9,8 @@ struct HouseholdMember: Identifiable {
 }
 
 struct HouseholdView: View {
+    @EnvironmentObject private var settings: KorbiSettings
+
     private let members: [HouseholdMember] = [
         .init(name: "Mia", role: "Organisation", status: "Letzter Einkauf abgeschlossen", imageName: "person.circle.fill"),
         .init(name: "Jonas", role: "Küche", status: "Plant Abendessen am Freitag", imageName: "person.crop.circle.badge.checkmark"),
@@ -27,23 +29,22 @@ struct HouseholdView: View {
                 VStack(alignment: .leading, spacing: 24) {
                     memberSection
                     routinesSection
-                    inspirationSection
                 }
                 .padding(.horizontal, 24)
                 .padding(.vertical, 16)
             }
             .background(KorbiBackground())
             .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarBackground(KorbiTheme.Colors.background.opacity(0.9), for: .navigationBar)
+            .toolbarBackground(settings.palette.background.opacity(0.9), for: .navigationBar)
             .navigationTitle("Haushalt")
         }
     }
 
     private var memberSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Team Korbi")
+            Text(settings.householdName)
                 .font(KorbiTheme.Typography.title())
-                .foregroundStyle(KorbiTheme.Colors.textPrimary)
+                .foregroundStyle(settings.palette.textPrimary)
 
             VStack(spacing: 14) {
                 ForEach(members) { member in
@@ -51,25 +52,25 @@ struct HouseholdView: View {
                         HStack(spacing: 16) {
                             Image(systemName: member.imageName)
                                 .font(.system(size: 32))
-                                .foregroundStyle(KorbiTheme.Colors.primary)
+                                .foregroundStyle(settings.palette.primary)
                                 .frame(width: 56, height: 56)
                                 .background(
                                     RoundedRectangle(cornerRadius: KorbiTheme.Metrics.compactCornerRadius, style: .continuous)
-                                        .fill(KorbiTheme.Colors.primary.opacity(0.14))
+                                        .fill(settings.palette.primary.opacity(0.14))
                                 )
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(member.name)
                                     .font(KorbiTheme.Typography.body(weight: .semibold))
                                 Text(member.role)
                                     .font(KorbiTheme.Typography.caption())
-                                    .foregroundStyle(KorbiTheme.Colors.primary.opacity(0.75))
+                                    .foregroundStyle(settings.palette.primary.opacity(0.75))
                                 Text(member.status)
                                     .font(KorbiTheme.Typography.body())
-                                    .foregroundStyle(KorbiTheme.Colors.textSecondary)
+                                    .foregroundStyle(settings.palette.textSecondary)
                             }
                             Spacer()
                             Image(systemName: "chevron.right")
-                                .foregroundStyle(KorbiTheme.Colors.primary.opacity(0.7))
+                                .foregroundStyle(settings.palette.primary.opacity(0.7))
                         }
                     }
                 }
@@ -81,27 +82,27 @@ struct HouseholdView: View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Routinen")
                 .font(KorbiTheme.Typography.title())
-                .foregroundStyle(KorbiTheme.Colors.textPrimary)
+                .foregroundStyle(settings.palette.textPrimary)
 
             KorbiCard {
                 VStack(alignment: .leading, spacing: 12) {
                     ForEach(routines.indices, id: \.self) { index in
                         HStack(alignment: .top, spacing: 12) {
                             Circle()
-                                .fill(KorbiTheme.Colors.primary.opacity(0.15))
+                                .fill(settings.palette.primary.opacity(0.15))
                                 .frame(width: 12, height: 12)
                                 .overlay(
                                     Circle()
-                                        .stroke(KorbiTheme.Colors.primary, lineWidth: 2)
+                                        .stroke(settings.palette.primary, lineWidth: 2)
                                 )
                             Text(routines[index])
                                 .font(KorbiTheme.Typography.body())
-                                .foregroundStyle(KorbiTheme.Colors.textPrimary)
+                                .foregroundStyle(settings.palette.textPrimary)
                             Spacer()
                         }
                         if index != routines.indices.last {
                             Divider()
-                                .overlay(KorbiTheme.Colors.outline.opacity(0.4))
+                                .overlay(settings.palette.outline.opacity(0.4))
                         }
                     }
 
@@ -110,33 +111,9 @@ struct HouseholdView: View {
                             .font(KorbiTheme.Typography.body(weight: .medium))
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(KorbiTheme.Colors.primary)
+                    .tint(settings.palette.primary)
                     .controlSize(.large)
                     .clipShape(RoundedRectangle(cornerRadius: KorbiTheme.Metrics.compactCornerRadius, style: .continuous))
-                }
-            }
-        }
-    }
-
-    private var inspirationSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Für mehr Leichtigkeit")
-                .font(KorbiTheme.Typography.title())
-                .foregroundStyle(KorbiTheme.Colors.textPrimary)
-
-            KorbiCard {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Balance aus Aufgaben und Pausen")
-                        .font(KorbiTheme.Typography.body(weight: .semibold))
-                    Text("Korbi erinnert euch daran, Aufgaben gerecht zu verteilen und kleine Auszeiten zu planen. So bleibt der Haushalt entspannt organisiert.")
-                        .font(KorbiTheme.Typography.body())
-                        .foregroundStyle(KorbiTheme.Colors.textSecondary)
-                    HStack {
-                        Spacer()
-                        Image(systemName: "hands.sparkles.fill")
-                            .font(.system(size: 28))
-                            .foregroundStyle(KorbiTheme.Colors.primary.opacity(0.7))
-                    }
                 }
             }
         }
@@ -145,4 +122,5 @@ struct HouseholdView: View {
 
 #Preview {
     HouseholdView()
+        .environmentObject(KorbiSettings())
 }

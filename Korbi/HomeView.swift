@@ -9,6 +9,9 @@ struct ShoppingItem: Identifiable {
 }
 
 struct HomeView: View {
+    @EnvironmentObject private var settings: KorbiSettings
+    @State private var showRecentPurchases = false
+
     private let todayItems: [ShoppingItem] = [
         .init(name: "Seasonal greens", quantity: "1 bundle", note: "Farmer's market – local", isUrgent: true),
         .init(name: "Oat milk", quantity: "2 cartons", note: "Barista blend for mornings", isUrgent: false),
@@ -22,8 +25,7 @@ struct HomeView: View {
 
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 28) {
-                        greeting
-                        focusCard
+                        recentPurchasesButton
                         todaysItems
                     }
                     .padding(.horizontal, 24)
@@ -35,47 +37,44 @@ struct HomeView: View {
                     .padding(.bottom, 40)
             }
             .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarBackground(KorbiTheme.Colors.background.opacity(0.85), for: .navigationBar)
+            .toolbarBackground(settings.palette.background.opacity(0.85), for: .navigationBar)
             .navigationTitle("Korbi")
             .navigationBarTitleDisplayMode(.large)
         }
-        .accentColor(KorbiTheme.Colors.primary)
-    }
-
-    private var greeting: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Hi Korbi Crew")
-                .font(KorbiTheme.Typography.title())
-                .foregroundStyle(KorbiTheme.Colors.textSecondary)
-            Text("Heute im Blick")
-                .font(KorbiTheme.Typography.largeTitle())
-                .foregroundStyle(KorbiTheme.Colors.textPrimary)
-        }
-    }
-
-    private var focusCard: some View {
-        KorbiCard {
-            VStack(alignment: .leading, spacing: 16) {
-                PillTag(text: "Frische Woche", systemImage: "leaf")
-                Text("Fridge check & restock")
-                    .font(KorbiTheme.Typography.title())
-                    .foregroundStyle(KorbiTheme.Colors.textPrimary)
-                Text("Korbi schlägt eine ausgewogene Mischung aus frischen Zutaten und Haushaltsbasics vor. Lass uns gemeinsam beginnen.")
-                    .font(KorbiTheme.Typography.body())
-                    .foregroundStyle(KorbiTheme.Colors.textSecondary)
-                Divider()
-                    .overlay(KorbiTheme.Colors.outline.opacity(0.4))
-                HStack(spacing: 16) {
-                    Label("3 neue Inspirationen", systemImage: "sparkles")
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(KorbiTheme.Colors.primary)
+        .accentColor(settings.palette.primary)
+        .sheet(isPresented: $showRecentPurchases) {
+            NavigationStack {
+                List {
+                    ForEach(Array(settings.recentPurchases.prefix(10)), id: \.self) { item in
+                        Label(item, systemImage: "checkmark.circle")
+                            .foregroundStyle(settings.palette.primary)
+                    }
                 }
-                .font(KorbiTheme.Typography.body(weight: .medium))
-                .foregroundStyle(KorbiTheme.Colors.primary)
+                .scrollContentBackground(.hidden)
+                .background(settings.palette.background)
+                .navigationTitle("Kürzlich gekauft")
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Fertig") { showRecentPurchases = false }
+                            .foregroundStyle(settings.palette.primary)
+                    }
+                }
             }
+            .environmentObject(settings)
         }
+    }
+
+    private var recentPurchasesButton: some View {
+        Button(action: { showRecentPurchases = true }) {
+            Label("Kürzlich gekauft", systemImage: "clock.arrow.circlepath")
+                .font(KorbiTheme.Typography.body(weight: .semibold))
+                .padding(.vertical, 16)
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(settings.palette.primary.opacity(0.9))
+        .controlSize(.large)
+        .clipShape(RoundedRectangle(cornerRadius: KorbiTheme.Metrics.compactCornerRadius, style: .continuous))
     }
 
     private var todaysItems: some View {
@@ -83,11 +82,11 @@ struct HomeView: View {
             HStack {
                 Text("Heute zu besorgen")
                     .font(KorbiTheme.Typography.title())
-                    .foregroundStyle(KorbiTheme.Colors.textPrimary)
+                    .foregroundStyle(settings.palette.textPrimary)
                 Spacer()
                 Button("Alle anzeigen") {}
                     .font(KorbiTheme.Typography.body(weight: .medium))
-                    .foregroundStyle(KorbiTheme.Colors.primary)
+                    .foregroundStyle(settings.palette.primary)
             }
 
             VStack(spacing: 16) {
@@ -96,23 +95,23 @@ struct HomeView: View {
                         HStack(alignment: .top, spacing: 16) {
                             ZStack {
                                 RoundedRectangle(cornerRadius: KorbiTheme.Metrics.compactCornerRadius, style: .continuous)
-                                    .fill(KorbiTheme.Colors.primary.opacity(0.14))
+                                    .fill(settings.palette.primary.opacity(0.14))
                                 Image(systemName: item.isUrgent ? "leaf.fill" : "bag")
                                     .font(.system(size: 20, weight: .semibold))
-                                    .foregroundStyle(KorbiTheme.Colors.primary)
+                                    .foregroundStyle(settings.palette.primary)
                             }
                             .frame(width: 56, height: 56)
 
                             VStack(alignment: .leading, spacing: 8) {
                                 Text(item.name)
                                     .font(KorbiTheme.Typography.body(weight: .semibold))
-                                    .foregroundStyle(KorbiTheme.Colors.textPrimary)
+                                    .foregroundStyle(settings.palette.textPrimary)
                                 Text(item.quantity)
                                     .font(KorbiTheme.Typography.caption())
-                                    .foregroundStyle(KorbiTheme.Colors.primary.opacity(0.75))
+                                    .foregroundStyle(settings.palette.primary.opacity(0.75))
                                 Text(item.note)
                                     .font(KorbiTheme.Typography.body())
-                                    .foregroundStyle(KorbiTheme.Colors.textSecondary)
+                                    .foregroundStyle(settings.palette.textSecondary)
                             }
                             Spacer()
 
@@ -129,10 +128,12 @@ struct HomeView: View {
 
 #Preview {
     HomeView()
+        .environmentObject(KorbiSettings())
         .preferredColorScheme(.light)
 }
 
 #Preview("Dark") {
     HomeView()
+        .environmentObject(KorbiSettings())
         .preferredColorScheme(.dark)
 }

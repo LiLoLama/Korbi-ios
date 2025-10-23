@@ -23,9 +23,13 @@ struct KorbiApp: App {
         }
     }()
 
+    @StateObject private var settings = KorbiSettings()
+
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(settings)
+                .preferredColorScheme(settings.useWarmLightMode ? .light : nil)
         }
         .modelContainer(sharedModelContainer)
     }
