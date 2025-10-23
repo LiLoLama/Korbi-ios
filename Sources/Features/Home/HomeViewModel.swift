@@ -14,7 +14,7 @@ final class HomeViewModel: ObservableObject {
     private let listsService: ListsServicing
     private let itemsService: ItemsServicing
 
-    private var currentList: List?
+    private var currentList: ShoppingList?
     private var recordingTask: Task<Void, Never>?
     private var observers: [NSObjectProtocol] = []
 
@@ -56,7 +56,7 @@ final class HomeViewModel: ObservableObject {
         }
     }
 
-    func loadItems(for list: List) async throws {
+    func loadItems(for list: ShoppingList) async throws {
         let itemsPair = try await itemsService.fetchItems(for: list)
         withAnimation(.spring(response: 0.35, dampingFraction: 0.88)) {
             items = simulateEmptyState ? [] : itemsPair.open

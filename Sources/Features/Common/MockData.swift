@@ -13,10 +13,10 @@ enum MockData {
         members: members
     )
 
-    static let lists: [List] = [
-        List(id: UUID(), name: "Wocheneinkauf", isDefault: true, members: members),
-        List(id: UUID(), name: "Drogerie", isDefault: false, members: members.dropFirst().map { $0 }),
-        List(id: UUID(), name: "Baumarkt", isDefault: false, members: members)
+    static let lists: [ShoppingList] = [
+        ShoppingList(id: UUID(), name: "Wocheneinkauf", isDefault: true, members: members),
+        ShoppingList(id: UUID(), name: "Drogerie", isDefault: false, members: members.dropFirst().map { $0 }),
+        ShoppingList(id: UUID(), name: "Baumarkt", isDefault: false, members: members)
     ]
 
     static let openItems: [Item] = [

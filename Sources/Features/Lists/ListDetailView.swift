@@ -2,7 +2,7 @@ import SwiftUI
 
 struct ListDetailView: View {
     @ObservedObject var viewModel: ListViewModel
-    let list: List
+    let list: ShoppingList
 
     @State private var itemToDelete: Item?
     @State private var showDeleteConfirmation = false

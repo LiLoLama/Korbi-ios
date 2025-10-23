@@ -32,7 +32,7 @@ struct ListsView: View {
                 .accessibilityHint(Text("Öffnet die Detailansicht für \(list.name)"))
             }
             .listStyle(.insetGrouped)
-            .navigationDestination(for: List.self) { list in
+            .navigationDestination(for: ShoppingList.self) { list in
                 ListDetailView(viewModel: viewModel, list: list)
             }
             .navigationTitle("Listen")

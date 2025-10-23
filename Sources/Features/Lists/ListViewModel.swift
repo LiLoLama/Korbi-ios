@@ -3,8 +3,8 @@ import SwiftUI
 
 @MainActor
 final class ListViewModel: ObservableObject {
-    @Published var lists: [List] = []
-    @Published var selectedList: List?
+    @Published var lists: [ShoppingList] = []
+    @Published var selectedList: ShoppingList?
     @Published var openItems: [Item] = []
     @Published var purchasedItems: [Item] = []
     @Published var searchText: String = ""
@@ -58,7 +58,7 @@ final class ListViewModel: ObservableObject {
         }
     }
 
-    func loadItems(for list: List) async throws {
+    func loadItems(for list: ShoppingList) async throws {
         let result = try await itemsService.fetchItems(for: list)
         withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
             openItems = result.open
@@ -66,7 +66,7 @@ final class ListViewModel: ObservableObject {
         }
     }
 
-    func select(list: List) {
+    func select(list: ShoppingList) {
         guard list.id != selectedList?.id else { return }
         selectedList = list
         undoItem = nil

@@ -10,14 +10,14 @@ protocol HouseholdServicing {
 }
 
 protocol ListsServicing {
-    func fetchLists() async throws -> [List]
-    func defaultList() async throws -> List
+    func fetchLists() async throws -> [ShoppingList]
+    func defaultList() async throws -> ShoppingList
 }
 
 protocol ItemsServicing {
-    func fetchItems(for list: List) async throws -> (open: [Item], purchased: [Item])
-    func mark(_ item: Item, purchased: Bool, in list: List) async throws -> (open: [Item], purchased: [Item])
-    func delete(_ item: Item, in list: List) async throws -> (open: [Item], purchased: [Item])
+    func fetchItems(for list: ShoppingList) async throws -> (open: [Item], purchased: [Item])
+    func mark(_ item: Item, purchased: Bool, in list: ShoppingList) async throws -> (open: [Item], purchased: [Item])
+    func delete(_ item: Item, in list: ShoppingList) async throws -> (open: [Item], purchased: [Item])
 }
 
 enum FakeServiceError: Error, LocalizedError {
@@ -67,14 +67,14 @@ final class HouseholdFakeService: HouseholdServicing, FailureConfigurable {
 
 final class ListsFakeService: ListsServicing, FailureConfigurable {
     private let delay = FakeDelayProvider()
-    private var lists: [List] = MockData.lists
+    private var lists: [ShoppingList] = MockData.lists
 
-    func fetchLists() async throws -> [List] {
+    func fetchLists() async throws -> [ShoppingList] {
         try await delay.nextDelay()
         return lists
     }
 
-    func defaultList() async throws -> List {
+    func defaultList() async throws -> ShoppingList {
         try await delay.nextDelay()
         guard let list = lists.first(where: { $0.isDefault }) else {
             return lists.first ?? MockData.lists[0]
@@ -102,7 +102,7 @@ final class ItemsFakeService: ItemsServicing, FailureConfigurable {
         }
     }
 
-    func fetchItems(for list: List) async throws -> (open: [Item], purchased: [Item]) {
+    func fetchItems(for list: ShoppingList) async throws -> (open: [Item], purchased: [Item]) {
         try await delay.nextDelay()
         return (
             openItems[list.id] ?? [],
@@ -110,7 +110,7 @@ final class ItemsFakeService: ItemsServicing, FailureConfigurable {
         )
     }
 
-    func mark(_ item: Item, purchased: Bool, in list: List) async throws -> (open: [Item], purchased: [Item]) {
+    func mark(_ item: Item, purchased: Bool, in list: ShoppingList) async throws -> (open: [Item], purchased: [Item]) {
         try await delay.nextDelay()
         var open = openItems[list.id] ?? []
         var done = purchasedItems[list.id] ?? []
@@ -132,7 +132,7 @@ final class ItemsFakeService: ItemsServicing, FailureConfigurable {
         return (open, done)
     }
 
-    func delete(_ item: Item, in list: List) async throws -> (open: [Item], purchased: [Item]) {
+    func delete(_ item: Item, in list: ShoppingList) async throws -> (open: [Item], purchased: [Item]) {
         try await delay.nextDelay()
         var open = openItems[list.id] ?? []
         var done = purchasedItems[list.id] ?? []

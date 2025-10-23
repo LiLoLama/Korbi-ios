@@ -17,7 +17,7 @@ struct HouseholdMember: Identifiable, Equatable, Hashable {
     }
 }
 
-struct List: Identifiable, Equatable, Hashable {
+struct ShoppingList: Identifiable, Equatable, Hashable {
     let id: UUID
     var name: String
     var isDefault: Bool
