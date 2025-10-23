@@ -25,44 +25,45 @@ struct ListsView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                Section {
-                    Button {
-                    } label: {
-                        Label("Eigene Liste erstellen", systemImage: "plus.circle.fill")
-                            .font(KorbiTheme.Typography.body(weight: .semibold))
-                            .foregroundStyle(settings.palette.primary)
-                    }
-                    .listRowBackground(Color.clear)
-                }
+            ZStack(alignment: .bottom) {
+                KorbiBackground()
 
-                Section {
-                    ForEach(lists) { list in
-                        NavigationLink(destination: listDetail(list)) {
-                            ListCard(summary: list)
-                                .listRowInsets(EdgeInsets())
-                        }
-                        .listRowSeparator(.hidden)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            Button(role: .destructive) {} label: {
-                                Label("Delete", systemImage: "trash")
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 24) {
+                        Text("Listen")
+                            .font(KorbiTheme.Typography.title())
+                            .foregroundStyle(settings.palette.textPrimary)
+
+                        LazyVStack(spacing: 20) {
+                            ForEach(lists) { list in
+                                NavigationLink(destination: listDetail(list)) {
+                                    ListCard(summary: list)
+                                }
+                                .buttonStyle(.plain)
                             }
-                            Button {} label: {
-                                Label("Pin", systemImage: "pin")
-                            }
-                            .tint(color(for: list.colorRole))
                         }
                     }
-                } header: {
-                    Text("Listen")
-                        .font(KorbiTheme.Typography.title())
-                        .foregroundStyle(settings.palette.textPrimary)
-                        .padding(.bottom, 6)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 24)
+                    .padding(.bottom, 140)
                 }
-                .listRowBackground(Color.clear)
             }
-            .scrollContentBackground(.hidden)
-            .background(KorbiBackground())
+            .safeAreaInset(edge: .bottom) {
+                Button {
+                } label: {
+                    Label("Eigene Liste erstellen", systemImage: "plus.circle.fill")
+                        .font(KorbiTheme.Typography.body(weight: .semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                }
+                .buttonStyle(.plain)
+                .background(settings.palette.primary)
+                .foregroundStyle(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: KorbiTheme.Metrics.cornerRadius, style: .continuous))
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
+                .shadow(color: settings.palette.primary.opacity(0.2), radius: 12, y: 4)
+            }
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarBackground(settings.palette.background.opacity(0.9), for: .navigationBar)
             .navigationTitle("Listen")
@@ -80,17 +81,6 @@ struct ListsView: View {
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(settings.palette.background)
-    }
-
-    private func color(for role: ListColorRole) -> Color {
-        switch role {
-        case .primary:
-            return settings.palette.primary
-        case .accent:
-            return settings.palette.accent
-        case .pantry:
-            return Color(red: 0.62, green: 0.53, blue: 0.39)
-        }
     }
 }
 
@@ -115,10 +105,7 @@ private struct ListCard: View {
                         .font(KorbiTheme.Typography.body(weight: .semibold))
                         .foregroundStyle(settings.palette.textPrimary)
 
-                    HStack(spacing: 10) {
-                        PillTag(text: "\(summary.itemsDue) offen", systemImage: "clock")
-                        PillTag(text: "Teilen", systemImage: "person.2")
-                    }
+                    PillTag(text: "\(summary.itemsDue) offen", systemImage: "clock")
                 }
                 Spacer()
             }

@@ -83,45 +83,33 @@ struct HomeView: View {
                 Text("Heute zu besorgen")
                     .font(KorbiTheme.Typography.title())
                     .foregroundStyle(settings.palette.textPrimary)
-                Spacer()
-                Button("Alle anzeigen") {}
-                    .font(KorbiTheme.Typography.body(weight: .medium))
-                    .foregroundStyle(settings.palette.primary)
             }
 
-            VStack(spacing: 16) {
-                ForEach(todayItems) { item in
-                    KorbiCard {
-                        HStack(alignment: .top, spacing: 16) {
-                            ZStack {
-                                RoundedRectangle(cornerRadius: KorbiTheme.Metrics.compactCornerRadius, style: .continuous)
-                                    .fill(settings.palette.primary.opacity(0.14))
-                                Image(systemName: item.isUrgent ? "leaf.fill" : "bag")
-                                    .font(.system(size: 20, weight: .semibold))
-                                    .foregroundStyle(settings.palette.primary)
-                            }
-                            .frame(width: 56, height: 56)
+            ScrollView(showsIndicators: true) {
+                LazyVStack(spacing: 16) {
+                    ForEach(todayItems) { item in
+                        KorbiCard {
+                            HStack(alignment: .center, spacing: 16) {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text(item.name)
+                                        .font(KorbiTheme.Typography.body(weight: .semibold))
+                                        .foregroundStyle(settings.palette.textPrimary)
+                                    Text(item.quantity)
+                                        .font(KorbiTheme.Typography.caption())
+                                        .foregroundStyle(settings.palette.primary.opacity(0.75))
+                                }
+                                Spacer()
 
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text(item.name)
-                                    .font(KorbiTheme.Typography.body(weight: .semibold))
-                                    .foregroundStyle(settings.palette.textPrimary)
-                                Text(item.quantity)
-                                    .font(KorbiTheme.Typography.caption())
-                                    .foregroundStyle(settings.palette.primary.opacity(0.75))
-                                Text(item.note)
-                                    .font(KorbiTheme.Typography.body())
-                                    .foregroundStyle(settings.palette.textSecondary)
-                            }
-                            Spacer()
-
-                            if item.isUrgent {
-                                PillTag(text: "Frisch", systemImage: "sun.max")
+                                if item.isUrgent {
+                                    PillTag(text: "Frisch", systemImage: "sun.max")
+                                }
                             }
                         }
                     }
                 }
+                .padding(.vertical, 1)
             }
+            .frame(maxHeight: 260)
         }
     }
 }
