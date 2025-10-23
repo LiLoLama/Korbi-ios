@@ -59,7 +59,7 @@ struct ListsView: View {
                 .buttonStyle(.plain)
                 .background(settings.palette.primary)
                 .foregroundStyle(Color.white)
-                .clipShape(RoundedRectangle(cornerRadius: KorbiTheme.Metrics.defaultCornerRadius, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: KorbiTheme.Metrics.cornerRadius, style: .continuous))
                 .padding(.horizontal, 24)
                 .padding(.bottom, 24)
                 .shadow(color: settings.palette.primary.opacity(0.2), radius: 12, y: 4)
