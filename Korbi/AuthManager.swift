@@ -30,8 +30,40 @@ final class AuthManager: ObservableObject {
     @Published private(set) var currentUserEmail: String? = nil
 
     private struct StoredUser: Codable, Equatable {
+        let id: UUID
         let email: String
         let password: String
+        let primaryHouseholdID: UUID
+
+        init(id: UUID = UUID(), email: String, password: String, primaryHouseholdID: UUID = UUID()) {
+            self.id = id
+            self.email = email
+            self.password = password
+            self.primaryHouseholdID = primaryHouseholdID
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case id
+            case email
+            case password
+            case primaryHouseholdID
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+            email = try container.decode(String.self, forKey: .email)
+            password = try container.decode(String.self, forKey: .password)
+            primaryHouseholdID = try container.decodeIfPresent(UUID.self, forKey: .primaryHouseholdID) ?? UUID()
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(id, forKey: .id)
+            try container.encode(email, forKey: .email)
+            try container.encode(password, forKey: .password)
+            try container.encode(primaryHouseholdID, forKey: .primaryHouseholdID)
+        }
     }
 
     private let usersKey = "korbi.auth.users"
@@ -41,8 +73,12 @@ final class AuthManager: ObservableObject {
         didSet { persistUsers() }
     }
 
-    init(userDefaults: UserDefaults = .standard) {
+    init(
+        userDefaults: UserDefaults = .standard,
+        supabaseClient: SupabaseHouseholdMembershipService = SupabaseClient()
+    ) {
         self.userDefaults = userDefaults
+        self.supabaseClient = supabaseClient
         if let data = userDefaults.data(forKey: usersKey),
            let storedUsers = try? JSONDecoder().decode([String: StoredUser].self, from: data) {
             users = storedUsers
@@ -66,8 +102,9 @@ final class AuthManager: ObservableObject {
     }
 
     private let userDefaults: UserDefaults
+    private let supabaseClient: SupabaseHouseholdMembershipService
 
-    func login(email: String, password: String) throws {
+    func login(email: String, password: String) async throws {
         let normalizedEmail = normalize(email)
         guard
             let user = users[normalizedEmail],
@@ -81,7 +118,7 @@ final class AuthManager: ObservableObject {
         persistLoggedInEmail(normalizedEmail)
     }
 
-    func register(email: String, password: String, confirmation: String) throws {
+    func register(email: String, password: String, confirmation: String) async throws {
         let normalizedEmail = normalize(email)
 
         guard isValidEmail(normalizedEmail) else { throw AuthError.invalidEmail }
@@ -94,6 +131,19 @@ final class AuthManager: ObservableObject {
         currentUserEmail = normalizedEmail
         isAuthenticated = true
         persistLoggedInEmail(normalizedEmail)
+
+        do {
+            try await supabaseClient.createMembership(
+                householdID: user.primaryHouseholdID,
+                userID: user.id,
+                role: "owner",
+                joinedAt: Date()
+            )
+        } catch {
+            users.removeValue(forKey: normalizedEmail)
+            logout()
+            throw error
+        }
     }
 
     func logout() {

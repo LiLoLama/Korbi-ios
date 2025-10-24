@@ -166,9 +166,9 @@ struct LoginView: View {
         Task { @MainActor in
             do {
                 if isRegistering {
-                    try authManager.register(email: email, password: password, confirmation: confirmation)
+                    try await authManager.register(email: email, password: password, confirmation: confirmation)
                 } else {
-                    try authManager.login(email: email, password: password)
+                    try await authManager.login(email: email, password: password)
                 }
                 clearForm()
             } catch {
