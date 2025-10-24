@@ -220,18 +220,8 @@ struct ItemRowView: View {
             .padding(.vertical, 12)
             .padding(.horizontal, 16)
             .frame(maxWidth: .infinity)
-
-            if isPurchased {
-                Text("Gekauft")
-                    .font(KorbiTheme.Typography.caption(weight: .semibold))
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(Color.green)
-                    .foregroundStyle(Color.white)
-                    .clipShape(Capsule())
-                    .transition(.scale.combined(with: .opacity))
-            }
         }
+        .overlay { purchaseOverlay }
         .padding(.vertical, 4)
         .padding(.horizontal, 12)
     }
@@ -241,6 +231,46 @@ struct ItemRowView: View {
             return Color.green.opacity(0.25)
         } else {
             return settings.palette.card.opacity(0.7)
+        }
+    }
+
+    @ViewBuilder
+    private var purchaseOverlay: some View {
+        if isPurchased {
+            RoundedRectangle(cornerRadius: KorbiTheme.Metrics.compactCornerRadius, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.green.opacity(0.85),
+                            Color.green.opacity(0.65)
+                        ],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .overlay {
+                    HStack(spacing: 12) {
+                        Image(systemName: "checkmark.seal.fill")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(.white)
+
+                        Text("Gekauft")
+                            .font(KorbiTheme.Typography.body(weight: .semibold))
+                            .foregroundStyle(.white)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 14)
+                    .frame(maxWidth: .infinity)
+                }
+                .shadow(color: Color.green.opacity(0.35), radius: 12, x: 0, y: 6)
+                .transition(
+                    .asymmetric(
+                        insertion: .move(edge: .leading).combined(with: .opacity),
+                        removal: .opacity
+                    )
+                )
+                .animation(.spring(response: 0.5, dampingFraction: 0.8), value: isPurchased)
+                .allowsHitTesting(false)
         }
     }
 }
