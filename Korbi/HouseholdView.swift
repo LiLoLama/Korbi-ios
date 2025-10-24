@@ -1,17 +1,7 @@
 import SwiftUI
 
-struct HouseholdMember: Identifiable {
-    let id = UUID()
-    let name: String
-    let role: String
-    let status: String
-    let imageName: String
-}
-
 struct HouseholdView: View {
     @EnvironmentObject private var settings: KorbiSettings
-
-    @State private var members: [HouseholdMember] = []
 
     @State private var routines: [String] = []
 
@@ -76,6 +66,7 @@ struct HouseholdView: View {
                 .disabled(settings.households.count < 2)
             }
 
+            let members = settings.currentHouseholdMembers
             if members.isEmpty {
                 KorbiCard {
                     VStack(alignment: .leading, spacing: 8) {
@@ -92,7 +83,7 @@ struct HouseholdView: View {
                     ForEach(members) { member in
                         KorbiCard {
                             HStack(spacing: 16) {
-                                Image(systemName: member.imageName)
+                                Image(systemName: "person.crop.circle")
                                     .font(.system(size: 32))
                                     .foregroundStyle(settings.palette.primary)
                                     .frame(width: 56, height: 56)
@@ -103,12 +94,14 @@ struct HouseholdView: View {
                                 VStack(alignment: .leading, spacing: 6) {
                                     Text(member.name)
                                         .font(KorbiTheme.Typography.body(weight: .semibold))
-                                    Text(member.role)
+                                    Text(member.role ?? "Mitglied")
                                         .font(KorbiTheme.Typography.caption())
                                         .foregroundStyle(settings.palette.primary.opacity(0.75))
-                                    Text(member.status)
-                                        .font(KorbiTheme.Typography.body())
-                                        .foregroundStyle(settings.palette.textSecondary)
+                                    if let status = member.status, !status.isEmpty {
+                                        Text(status)
+                                            .font(KorbiTheme.Typography.body())
+                                            .foregroundStyle(settings.palette.textSecondary)
+                                    }
                                 }
                                 Spacer()
                                 Image(systemName: "chevron.right")

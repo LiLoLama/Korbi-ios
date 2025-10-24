@@ -9,6 +9,7 @@ struct LoginView: View {
     @State private var confirmation: String = ""
     @State private var isRegistering = false
     @State private var errorMessage: String?
+    @State private var successMessage: String?
     @FocusState private var focusedField: Field?
 
     enum Field: Hashable {
@@ -101,6 +102,15 @@ struct LoginView: View {
                             .transition(.opacity)
                     }
 
+                    if let successMessage {
+                        Text(successMessage)
+                            .font(.footnote)
+                            .foregroundColor(settings.palette.primary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                            .transition(.opacity)
+                    }
+
                     VStack(spacing: 12) {
                         Button(action: submit) {
                             Text(isRegistering ? "Jetzt registrieren" : "Anmelden")
@@ -139,6 +149,7 @@ struct LoginView: View {
         .onChange(of: isRegistering) { _ in
             withAnimation(.easeInOut) {
                 errorMessage = nil
+                successMessage = nil
                 if isRegistering {
                     focusedField = .email
                 } else {
@@ -167,21 +178,33 @@ struct LoginView: View {
             do {
                 if isRegistering {
                     try await authManager.register(email: email, password: password, confirmation: confirmation)
+                    successMessage = "Registrierung erfolgreich! Bitte prüfe deine E-Mails, um die Registrierung zu bestätigen."
+                    clearPasswordFields()
                 } else {
                     try await authManager.login(email: email, password: password)
+                    successMessage = nil
+                    clearForm()
                 }
-                clearForm()
             } catch {
                 if let authError = error as? AuthError {
                     errorMessage = authError.errorDescription
                 } else {
                     errorMessage = "Etwas ist schiefgelaufen. Bitte versuche es später erneut."
                 }
+                successMessage = nil
             }
         }
     }
 
     private func clearForm() {
+        withAnimation(.easeInOut) {
+            password = ""
+            confirmation = ""
+            errorMessage = nil
+        }
+    }
+
+    private func clearPasswordFields() {
         withAnimation(.easeInOut) {
             password = ""
             confirmation = ""

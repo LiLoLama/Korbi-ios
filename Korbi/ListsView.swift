@@ -58,18 +58,37 @@ struct ListsView: View {
     }
 
     private func listDetail(_ summary: ShoppingListSummary) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text(summary.title)
-                .font(KorbiTheme.Typography.largeTitle())
-                .foregroundStyle(settings.palette.textPrimary)
-            Text("Lege Artikel in dieser Kategorie an, um den Überblick zu behalten.")
-                .font(KorbiTheme.Typography.body())
-                .foregroundStyle(settings.palette.textSecondary)
-            Spacer()
+        let items = settings.items(for: summary.title)
+        return List {
+            if items.isEmpty {
+                Text("Keine Artikel in dieser Kategorie.")
+                    .font(KorbiTheme.Typography.body())
+                    .foregroundStyle(settings.palette.textSecondary)
+                    .listRowBackground(Color.clear)
+            } else {
+                ForEach(items) { item in
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(item.name)
+                            .font(KorbiTheme.Typography.body(weight: .semibold))
+                        if !item.quantity.isEmpty {
+                            Text(item.quantity)
+                                .font(KorbiTheme.Typography.caption())
+                                .foregroundStyle(settings.palette.primary.opacity(0.7))
+                        }
+                        if !item.description.isEmpty {
+                            Text(item.description)
+                                .font(KorbiTheme.Typography.body())
+                                .foregroundStyle(settings.palette.textSecondary)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                    .listRowBackground(Color.clear)
+                }
+            }
         }
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(settings.palette.background)
+        .scrollContentBackground(.hidden)
+        .background(KorbiBackground())
+        .navigationTitle(summary.title)
     }
 }
 

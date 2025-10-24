@@ -33,10 +33,16 @@ struct SupabaseAuthSession: Codable, Equatable {
     let email: String
 }
 
-protocol SupabaseHouseholdMembershipService {
+protocol SupabaseService {
     func createMembership(householdID: UUID, userID: UUID, role: String, joinedAt: Date) async throws
     func signIn(email: String, password: String) async throws -> SupabaseAuthSession
     func signUp(email: String, password: String) async throws -> SupabaseAuthSession
+    func fetchHouseholds(accessToken: String) async throws -> [SupabaseHousehold]
+    func createHousehold(id: UUID, name: String, accessToken: String) async throws
+    func deleteHousehold(id: UUID, accessToken: String) async throws
+    func fetchHouseholdMembers(householdID: UUID, accessToken: String) async throws -> [SupabaseHouseholdMember]
+    func updateHouseholdMemberName(userID: UUID, householdID: UUID, name: String, accessToken: String) async throws
+    func fetchItems(accessToken: String, householdID: UUID?) async throws -> [SupabaseItem]
 }
 
 enum SupabaseError: LocalizedError {
@@ -56,7 +62,7 @@ enum SupabaseError: LocalizedError {
     }
 }
 
-final class SupabaseClient: SupabaseHouseholdMembershipService {
+final class SupabaseClient: SupabaseService {
     private let configuration: SupabaseConfiguration?
     private let urlSession: URLSession
     private let encoder: JSONEncoder
@@ -121,6 +127,82 @@ final class SupabaseClient: SupabaseHouseholdMembershipService {
         )
 
         return try await performAuthRequest(request)
+    }
+
+    func fetchHouseholds(accessToken: String) async throws -> [SupabaseHousehold] {
+        let request = try dataRequest(
+            path: "rest/v1/households",
+            method: "GET",
+            queryItems: [URLQueryItem(name: "select", value: "*")],
+            accessToken: accessToken
+        )
+        return try await performDecodingRequest(request)
+    }
+
+    func createHousehold(id: UUID, name: String, accessToken: String) async throws {
+        let payload = [SupabaseHousehold(id: id, name: name)]
+        var request = try dataRequest(
+            path: "rest/v1/households",
+            method: "POST",
+            accessToken: accessToken
+        )
+        request.addValue("return=minimal", forHTTPHeaderField: "Prefer")
+        request.httpBody = try encoder.encode(payload)
+        try await performEmptyRequest(request)
+    }
+
+    func deleteHousehold(id: UUID, accessToken: String) async throws {
+        let request = try dataRequest(
+            path: "rest/v1/households",
+            method: "DELETE",
+            queryItems: [URLQueryItem(name: "id", value: "eq.\(id.uuidString)")],
+            accessToken: accessToken
+        )
+        try await performEmptyRequest(request)
+    }
+
+    func fetchHouseholdMembers(householdID: UUID, accessToken: String) async throws -> [SupabaseHouseholdMember] {
+        let request = try dataRequest(
+            path: "rest/v1/household_memberships",
+            method: "GET",
+            queryItems: [
+                URLQueryItem(name: "household_id", value: "eq.\(householdID.uuidString)"),
+                URLQueryItem(name: "select", value: "*")
+            ],
+            accessToken: accessToken
+        )
+        return try await performDecodingRequest(request)
+    }
+
+    func updateHouseholdMemberName(userID: UUID, householdID: UUID, name: String, accessToken: String) async throws {
+        var request = try dataRequest(
+            path: "rest/v1/household_memberships",
+            method: "PATCH",
+            queryItems: [
+                URLQueryItem(name: "household_id", value: "eq.\(householdID.uuidString)"),
+                URLQueryItem(name: "user_id", value: "eq.\(userID.uuidString)")
+            ],
+            accessToken: accessToken
+        )
+        request.addValue("return=representation", forHTTPHeaderField: "Prefer")
+        let payload = ["name": name]
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload, options: [])
+        _ = try await performDecodingRequest(request) as [SupabaseHouseholdMember]
+    }
+
+    func fetchItems(accessToken: String, householdID: UUID?) async throws -> [SupabaseItem] {
+        var queryItems: [URLQueryItem] = []
+        queryItems.append(URLQueryItem(name: "select", value: "*"))
+        if let householdID {
+            queryItems.append(URLQueryItem(name: "household_id", value: "eq.\(householdID.uuidString)"))
+        }
+        let request = try dataRequest(
+            path: "rest/v1/items",
+            method: "GET",
+            queryItems: queryItems,
+            accessToken: accessToken
+        )
+        return try await performDecodingRequest(request)
     }
 }
 
@@ -192,6 +274,29 @@ private extension SupabaseClient {
         return request
     }
 
+    func dataRequest(path: String, method: String, queryItems: [URLQueryItem] = [], accessToken: String) throws -> URLRequest {
+        guard let configuration else {
+            throw SupabaseError.missingConfiguration
+        }
+
+        var url = configuration.url.appendingPathComponent(path)
+        if var components = URLComponents(url: url, resolvingAgainstBaseURL: false), !queryItems.isEmpty {
+            components.queryItems = queryItems
+            if let composedURL = components.url {
+                url = composedURL
+            }
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue(configuration.apiKey, forHTTPHeaderField: "apikey")
+        let bearerToken = accessToken.isEmpty ? configuration.apiKey : accessToken
+        request.addValue("Bearer \(bearerToken)", forHTTPHeaderField: "Authorization")
+        return request
+    }
+
     func performAuthRequest(_ request: URLRequest) async throws -> SupabaseAuthSession {
         let (data, response) = try await urlSession.data(for: request)
 
@@ -236,6 +341,34 @@ private extension SupabaseClient {
         )
     }
 
+    func performDecodingRequest<Response: Decodable>(_ request: URLRequest) async throws -> Response {
+        let (data, response) = try await urlSession.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw SupabaseError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let message = String(data: data, encoding: .utf8) ?? "Unbekannte Fehlermeldung"
+            throw SupabaseError.requestFailed(statusCode: httpResponse.statusCode, message: message)
+        }
+
+        return try decoder.decode(Response.self, from: data)
+    }
+
+    func performEmptyRequest(_ request: URLRequest) async throws {
+        let (_, response) = try await urlSession.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw SupabaseError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let statusCode = httpResponse.statusCode
+            throw SupabaseError.requestFailed(statusCode: statusCode, message: "Request failed")
+        }
+    }
+
     struct HouseholdMembershipPayload: Encodable {
         let householdID: UUID
         let userID: UUID
@@ -248,5 +381,48 @@ private extension SupabaseClient {
             case role
             case joinedAt = "joined_at"
         }
+    }
+}
+
+struct SupabaseHousehold: Codable, Identifiable, Equatable {
+    let id: UUID
+    let name: String
+}
+
+struct SupabaseHouseholdMember: Codable, Identifiable, Equatable {
+    let householdID: UUID
+    let userID: UUID
+    let role: String?
+    let status: String?
+    let name: String?
+
+    enum CodingKeys: String, CodingKey {
+        case householdID = "household_id"
+        case userID = "user_id"
+        case role
+        case status
+        case name
+    }
+
+    var id: String {
+        "\(householdID.uuidString)-\(userID.uuidString)"
+    }
+}
+
+struct SupabaseItem: Codable, Identifiable, Equatable {
+    let id: UUID
+    let householdID: UUID?
+    let name: String
+    let description: String?
+    let quantity: String?
+    let category: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case householdID = "household_id"
+        case name
+        case description
+        case quantity
+        case category
     }
 }

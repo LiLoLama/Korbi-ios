@@ -1,17 +1,8 @@
 import SwiftUI
 
-struct ShoppingItem: Identifiable {
-    let id = UUID()
-    let name: String
-    let quantity: String
-    let note: String
-    let isUrgent: Bool
-}
-
 struct HomeView: View {
     @EnvironmentObject private var settings: KorbiSettings
     @State private var showRecentPurchases = false
-    @State private var todayItems: [ShoppingItem] = []
 
     var body: some View {
         NavigationStack {
@@ -90,7 +81,8 @@ struct HomeView: View {
                     .foregroundStyle(settings.palette.textPrimary)
             }
 
-            if todayItems.isEmpty {
+            let items = settings.currentHouseholdItems
+            if items.isEmpty {
                 KorbiCard {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Noch keine Artikel geplant")
@@ -104,22 +96,26 @@ struct HomeView: View {
                 }
             } else {
                 VStack(spacing: 16) {
-                    ForEach(todayItems) { item in
+                    ForEach(items) { item in
                         KorbiCard {
                             HStack(alignment: .center, spacing: 16) {
                                 VStack(alignment: .leading, spacing: 6) {
                                     Text(item.name)
                                         .font(KorbiTheme.Typography.body(weight: .semibold))
                                         .foregroundStyle(settings.palette.textPrimary)
-                                    Text(item.quantity)
-                                        .font(KorbiTheme.Typography.caption())
-                                        .foregroundStyle(settings.palette.primary.opacity(0.75))
+                                    if !item.quantity.isEmpty {
+                                        Text(item.quantity)
+                                            .font(KorbiTheme.Typography.caption())
+                                            .foregroundStyle(settings.palette.primary.opacity(0.75))
+                                    }
+                                    if !item.description.isEmpty {
+                                        Text(item.description)
+                                            .font(KorbiTheme.Typography.body())
+                                            .foregroundStyle(settings.palette.textSecondary)
+                                            .lineLimit(2)
+                                    }
                                 }
                                 Spacer()
-
-                                if item.isUrgent {
-                                    PillTag(text: "Frisch", systemImage: "sun.max")
-                                }
                             }
                         }
                     }
