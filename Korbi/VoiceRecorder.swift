@@ -123,9 +123,20 @@ final class VoiceRecorder: NSObject, ObservableObject {
 
                 var request = URLRequest(url: webhookURL)
                 request.httpMethod = "POST"
-                request.setValue("audio/m4a", forHTTPHeaderField: "Content-Type")
 
-                let (_, response) = try await URLSession.shared.upload(for: request, from: data)
+                let boundary = "Boundary-\(UUID().uuidString)"
+                request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+
+                var body = Data()
+                let filename = url.lastPathComponent
+
+                body.appendFormFieldBoundary(boundary)
+                body.appendFormFieldDisposition(name: "file", filename: filename, contentType: "audio/mp4")
+                body.append(data)
+                body.appendLineBreak()
+                body.appendClosingBoundary(boundary)
+
+                let (_, response) = try await URLSession.shared.upload(for: request, from: body)
 
                 if let httpResponse = response as? HTTPURLResponse,
                    !(200...299).contains(httpResponse.statusCode) {
@@ -192,6 +203,31 @@ extension VoiceRecorder: AVAudioRecorderDelegate {
         if let error {
             errorMessage = error.localizedDescription
             scheduleErrorCleanup()
+        }
+    }
+}
+
+private extension Data {
+    mutating func appendFormFieldBoundary(_ boundary: String) {
+        append("--\(boundary)\r\n")
+    }
+
+    mutating func appendFormFieldDisposition(name: String, filename: String, contentType: String) {
+        append("Content-Disposition: form-data; name=\"\(name)\"; filename=\"\(filename)\"\r\n")
+        append("Content-Type: \(contentType)\r\n\r\n")
+    }
+
+    mutating func appendLineBreak() {
+        append("\r\n")
+    }
+
+    mutating func appendClosingBoundary(_ boundary: String) {
+        append("--\(boundary)--\r\n")
+    }
+
+    mutating func append(_ string: String) {
+        if let data = string.data(using: .utf8) {
+            append(data)
         }
     }
 }
