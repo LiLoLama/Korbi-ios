@@ -227,7 +227,8 @@ final class AuthManager: ObservableObject {
         try await supabaseClient.createMembership(
             householdID: identifier,
             userID: userID,
-            role: "owner"
+            role: "owner",
+            joinedAt: Date()
         )
         return Household(id: identifier, name: trimmedName)
     }
