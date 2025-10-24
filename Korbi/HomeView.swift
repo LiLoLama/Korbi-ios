@@ -91,12 +91,12 @@ struct HomeView: View {
                     isUrgent: (item.category ?? "").localizedCaseInsensitiveContains("frisch")
                 )
             }
-            await MainActor {
+            await MainActor.run {
                 todayItems = mappedItems
                 fetchError = nil
             }
         } catch {
-            await MainActor {
+            await MainActor.run {
                 todayItems = []
                 fetchError = "Artikel konnten nicht geladen werden."
             }

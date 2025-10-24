@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct SettingsView: View {
+struct SettingsScreen: View {
     @EnvironmentObject private var settings: KorbiSettings
     @EnvironmentObject private var authManager: AuthManager
     @State private var isPresentingProfileEditor = false
@@ -148,7 +148,7 @@ struct SettingsView: View {
             .navigationTitle("Einstellungen")
         }
         .sheet(isPresented: $isPresentingProfileEditor) {
-            ProfileEditorSheet(
+            SettingsProfileEditorSheet(
                 name: $profileName,
                 email: $profileEmail,
                 favoriteStore: $favoriteStore,
@@ -160,7 +160,7 @@ struct SettingsView: View {
             .environmentObject(settings)
         }
         .sheet(isPresented: $isPresentingShareSheet) {
-            HouseholdShareSheet(
+            SettingsHouseholdShareSheet(
                 householdName: settings.currentHousehold?.name,
                 inviteEmail: $inviteEmail,
                 onCancel: { isPresentingShareSheet = false },
@@ -169,7 +169,7 @@ struct SettingsView: View {
             .environmentObject(settings)
         }
         .sheet(isPresented: $isPresentingCreateHousehold) {
-            CreateHouseholdSheet(
+            SettingsCreateHouseholdSheet(
                 title: "Haushalt erstellen",
                 actionTitle: "Erstellen",
                 householdName: $newHouseholdName,
@@ -186,7 +186,7 @@ struct SettingsView: View {
             .environmentObject(settings)
         }
         .sheet(isPresented: $isPresentingDeleteHousehold) {
-            DeleteHouseholdSheet(
+            SettingsDeleteHouseholdSheet(
                 households: settings.households,
                 onDismiss: { isPresentingDeleteHousehold = false },
                 onConfirmDeletion: { household in
@@ -220,14 +220,14 @@ struct SettingsView: View {
 }
 
 #Preview {
-    SettingsView()
+    SettingsScreen()
         .environmentObject(KorbiSettings())
         .environmentObject(AuthManager())
 }
 
-private extension SettingsView {
+private extension SettingsScreen {
     func initializeProfile() async {
-        await MainActor {
+        await MainActor.run {
             profileEmail = authManager.currentUserEmail ?? profileEmail
         }
         await loadHouseholds()
@@ -237,23 +237,23 @@ private extension SettingsView {
     func loadHouseholds() async {
         do {
             let fetched = try await authManager.fetchHouseholds()
-            await MainActor {
+            await MainActor.run {
                 settings.replaceHouseholds(fetched)
                 householdActionError = nil
             }
         } catch {
-            await MainActor {
+            await MainActor.run {
                 householdActionError = "Haushalte konnten nicht geladen werden."
             }
         }
     }
 
     func loadProfile() async {
-        await MainActor {
+        await MainActor.run {
             profileEmail = authManager.currentUserEmail ?? profileEmail
         }
         guard let household = settings.currentHousehold else {
-            await MainActor {
+            await MainActor.run {
                 profileName = ""
             }
             return
@@ -261,13 +261,13 @@ private extension SettingsView {
 
         do {
             if let membershipName = try await authManager.membershipName(for: household.id) {
-                await MainActor {
+                await MainActor.run {
                     profileName = membershipName
                     profileStatusMessage = nil
                 }
             }
         } catch {
-            await MainActor {
+            await MainActor.run {
                 profileStatusMessage = "Profilname konnte nicht geladen werden."
             }
         }
@@ -290,17 +290,17 @@ private extension SettingsView {
         Task {
             do {
                 try await authManager.updateMembershipName(trimmedName, for: household.id)
-                await MainActor {
+                await MainActor.run {
                     profileName = trimmedName
                     profileStatusMessage = "Profil aktualisiert."
                     isPresentingProfileEditor = false
                 }
             } catch {
-                await MainActor {
+                await MainActor.run {
                     profileStatusMessage = "Profil konnte nicht aktualisiert werden."
                 }
             }
-            await MainActor {
+            await MainActor.run {
                 isSavingProfile = false
             }
         }
@@ -309,7 +309,7 @@ private extension SettingsView {
     func createHousehold(named name: String) async -> Bool {
         do {
             if let household = try await authManager.createHousehold(named: name) {
-                await MainActor {
+                await MainActor.run {
                     settings.upsertHousehold(household)
                     householdActionError = nil
                 }
@@ -320,13 +320,13 @@ private extension SettingsView {
                 await loadProfile()
                 return true
             } else {
-                await MainActor {
+                await MainActor.run {
                     householdActionError = "Bitte gib einen gültigen Namen ein."
                 }
                 return false
             }
         } catch {
-            await MainActor {
+            await MainActor.run {
                 householdActionError = "Haushalt konnte nicht erstellt werden."
             }
             return false
@@ -336,20 +336,20 @@ private extension SettingsView {
     func deleteHousehold(_ household: Household) async {
         do {
             try await authManager.deleteHousehold(household)
-            await MainActor {
+            await MainActor.run {
                 settings.deleteHousehold(household)
                 householdActionError = nil
             }
             await loadProfile()
         } catch {
-            await MainActor {
+            await MainActor.run {
                 householdActionError = "Haushalt konnte nicht gelöscht werden."
             }
         }
     }
 }
 
-private struct ProfileEditorSheet: View {
+private struct SettingsProfileEditorSheet: View {
     @EnvironmentObject private var settings: KorbiSettings
     @Binding var name: String
     @Binding var email: String
@@ -403,7 +403,7 @@ private struct ProfileEditorSheet: View {
     }
 }
 
-private struct HouseholdShareSheet: View {
+private struct SettingsHouseholdShareSheet: View {
     @EnvironmentObject private var settings: KorbiSettings
     let householdName: String?
     @Binding var inviteEmail: String
@@ -458,7 +458,7 @@ private struct HouseholdShareSheet: View {
     }
 }
 
-struct CreateHouseholdSheet: View {
+struct SettingsCreateHouseholdSheet: View {
     let title: String
     let actionTitle: String
     @Binding var householdName: String
@@ -497,7 +497,7 @@ struct CreateHouseholdSheet: View {
     }
 }
 
-struct DeleteHouseholdSheet: View {
+struct SettingsDeleteHouseholdSheet: View {
     @EnvironmentObject private var settings: KorbiSettings
     let households: [Household]
     let onDismiss: () -> Void

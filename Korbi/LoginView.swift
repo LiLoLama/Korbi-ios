@@ -175,21 +175,26 @@ struct LoginView: View {
     private func submit() {
         focusedField = nil
         successMessage = nil
-        Task { @MainActor in
-            do {
-                if isRegistering {
-                    try await authManager.register(email: email, password: password, confirmation: confirmation)
-                    successMessage = "Registrierung erfolgreich! Bitte überprüfe deine E-Mails zur Bestätigung."
-                } else {
-                    try await authManager.login(email: email, password: password)
-                }
-                clearForm()
-            } catch {
-                if let authError = error as? AuthError {
-                    errorMessage = authError.errorDescription
-                } else {
-                    errorMessage = "Etwas ist schiefgelaufen. Bitte versuche es später erneut."
-                }
+        Task {
+            await handleSubmit()
+        }
+    }
+
+    @MainActor
+    private func handleSubmit() async {
+        do {
+            if isRegistering {
+                try await authManager.register(email: email, password: password, confirmation: confirmation)
+                successMessage = "Registrierung erfolgreich! Bitte überprüfe deine E-Mails zur Bestätigung."
+            } else {
+                try await authManager.login(email: email, password: password)
+            }
+            clearForm()
+        } catch {
+            if let authError = error as? AuthError {
+                errorMessage = authError.errorDescription
+            } else {
+                errorMessage = "Etwas ist schiefgelaufen. Bitte versuche es später erneut."
             }
         }
     }

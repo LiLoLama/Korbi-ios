@@ -42,7 +42,7 @@ struct ContentView: View {
                             .tabItem {
                                 Label("Haushalt", systemImage: "person.3.fill")
                             }
-                        SettingsView()
+                        SettingsScreen()
                             .tabItem {
                                 Label("Einstellungen", systemImage: "gearshape.fill")
                             }
@@ -73,7 +73,7 @@ struct ContentView: View {
         if authManager.isAuthenticated {
             await refreshHouseholds()
         } else {
-            await MainActor {
+            await MainActor.run {
                 settings.replaceHouseholds([])
                 householdLoadError = nil
             }
@@ -83,12 +83,12 @@ struct ContentView: View {
     private func refreshHouseholds() async {
         do {
             let households = try await authManager.fetchHouseholds()
-            await MainActor {
+            await MainActor.run {
                 settings.replaceHouseholds(households)
                 householdLoadError = nil
             }
         } catch {
-            await MainActor {
+            await MainActor.run {
                 householdLoadError = "Haushalte konnten nicht geladen werden."
             }
         }
@@ -97,7 +97,7 @@ struct ContentView: View {
     private func handleInitialHouseholdCreation(_ name: String) async -> Bool {
         do {
             if let household = try await authManager.createHousehold(named: name) {
-                await MainActor {
+                await MainActor.run {
                     settings.upsertHousehold(household)
                     householdLoadError = nil
                 }
@@ -105,7 +105,7 @@ struct ContentView: View {
             }
             return false
         } catch {
-            await MainActor {
+            await MainActor.run {
                 householdLoadError = "Der Haushalt konnte nicht erstellt werden."
             }
             return false
@@ -174,7 +174,7 @@ private struct InitialHouseholdSetupView: View {
             .navigationTitle("Haushalt anlegen")
         }
         .sheet(isPresented: $isPresentingCreateSheet) {
-            CreateHouseholdSheet(
+            SettingsCreateHouseholdSheet(
                 title: "Erster Haushalt",
                 actionTitle: "Anlegen",
                 householdName: $householdName,

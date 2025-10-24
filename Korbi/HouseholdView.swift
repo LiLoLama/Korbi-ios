@@ -190,7 +190,7 @@ struct HouseholdView: View {
 private extension HouseholdView {
     func loadMembers() async {
         guard let household = settings.currentHousehold else {
-            await MainActor {
+            await MainActor.run {
                 members = []
                 membersError = nil
             }
@@ -199,12 +199,12 @@ private extension HouseholdView {
 
         do {
             let fetched = try await authManager.fetchHouseholdMembers(for: household.id)
-            await MainActor {
+            await MainActor.run {
                 members = fetched
                 membersError = nil
             }
         } catch {
-            await MainActor {
+            await MainActor.run {
                 members = []
                 membersError = "Mitglieder konnten nicht geladen werden. Bitte versuche es erneut."
             }

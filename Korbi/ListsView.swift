@@ -89,12 +89,12 @@ struct ListsView: View {
                     items: mappedItems
                 )
             }
-            await MainActor {
+            await MainActor.run {
                 categories = summaries
                 loadError = summaries.isEmpty ? "Keine Listen gefunden." : nil
             }
         } catch {
-            await MainActor {
+            await MainActor.run {
                 categories = []
                 loadError = "Listen konnten nicht geladen werden."
             }
