@@ -26,10 +26,10 @@ enum AuthError: LocalizedError, Equatable {
 
 @MainActor
 final class AuthManager: ObservableObject {
-    @Published private(set) var isAuthenticated: Bool
-    @Published private(set) var currentUserEmail: String?
+    @Published private(set) var isAuthenticated: Bool = false
+    @Published private(set) var currentUserEmail: String? = nil
 
-    private struct StoredUser: Codable {
+    private struct StoredUser: Codable, Equatable {
         let email: String
         let password: String
     }
@@ -50,7 +50,10 @@ final class AuthManager: ObservableObject {
             users = [:]
         }
 
-        ensureDemoUserExists()
+        let demoUserUpdated = ensureDemoUserExists()
+        if demoUserUpdated {
+            persistUsers()
+        }
 
         if let loggedInEmail = userDefaults.string(forKey: loggedInEmailKey),
            users[loggedInEmail] != nil {
@@ -100,7 +103,8 @@ final class AuthManager: ObservableObject {
     }
 
     func loginAsDemoUser() {
-        if let demoUser = users[demoEmail] {
+        let normalizedEmail = normalize(demoEmail)
+        if let demoUser = users[normalizedEmail] {
             currentUserEmail = demoUser.email
             isAuthenticated = true
             persistLoggedInEmail(demoUser.email)
@@ -108,16 +112,20 @@ final class AuthManager: ObservableObject {
     }
 
     var demoCredentials: (email: String, password: String) {
-        (demoEmail, demoPassword)
+        (normalize(demoEmail), demoPassword)
     }
 
     private let demoEmail = "test@korbi.com"
     private let demoPassword = "test"
 
-    private func ensureDemoUserExists() {
-        if users[demoEmail] == nil {
-            users[demoEmail] = StoredUser(email: demoEmail, password: demoPassword)
-        }
+    @discardableResult
+    private func ensureDemoUserExists() -> Bool {
+        let normalizedEmail = normalize(demoEmail)
+        let demoUser = StoredUser(email: normalizedEmail, password: demoPassword)
+        guard users[normalizedEmail] != demoUser else { return false }
+
+        users[normalizedEmail] = demoUser
+        return true
     }
 
     private func persistUsers() {
