@@ -7,7 +7,7 @@ struct SettingsView: View {
     @State private var isPresentingShareSheet = false
     @State private var isPresentingCreateHousehold = false
     @State private var isPresentingDeleteHousehold = false
-    @State private var profileName = "Mia Berger"
+    @State private var profileName = ""
     @State private var profileEmail = "mia@example.com"
     @State private var favoriteStore = "Biomarkt am Platz"
     @State private var enableNotifications = true
@@ -20,7 +20,18 @@ struct SettingsView: View {
         NavigationStack {
             List {
                 Section(header: Text("Profil").font(KorbiTheme.Typography.title())) {
+                    if !settings.profileName.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Name")
+                                .font(KorbiTheme.Typography.caption())
+                                .foregroundStyle(settings.palette.textSecondary)
+                            Text(settings.profileName)
+                                .font(KorbiTheme.Typography.body(weight: .semibold))
+                        }
+                        .padding(.vertical, 4)
+                    }
                     Button {
+                        profileName = settings.profileName
                         isPresentingProfileEditor = true
                     } label: {
                         Label("Profil bearbeiten", systemImage: "person.crop.circle")
@@ -138,7 +149,10 @@ struct SettingsView: View {
                 email: $profileEmail,
                 favoriteStore: $favoriteStore,
                 notificationsEnabled: $enableNotifications,
-                onDismiss: { isPresentingProfileEditor = false }
+                onDismiss: {
+                    settings.updateProfileName(to: profileName)
+                    isPresentingProfileEditor = false
+                }
             )
             .environmentObject(settings)
         }

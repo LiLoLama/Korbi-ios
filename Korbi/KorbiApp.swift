@@ -23,8 +23,16 @@ struct KorbiApp: App {
         }
     }()
 
-    @StateObject private var settings = KorbiSettings()
-    @StateObject private var authManager = AuthManager()
+    private let supabaseClient: SupabaseClient
+    @StateObject private var settings: KorbiSettings
+    @StateObject private var authManager: AuthManager
+
+    init() {
+        let client = SupabaseClient()
+        self.supabaseClient = client
+        _settings = StateObject(wrappedValue: KorbiSettings(supabaseClient: client))
+        _authManager = StateObject(wrappedValue: AuthManager(supabaseClient: client))
+    }
 
     var body: some Scene {
         WindowGroup {

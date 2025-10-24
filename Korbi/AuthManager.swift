@@ -49,16 +49,18 @@ final class AuthManager: ObservableObject {
     }
 
     private let userDefaults: UserDefaults
-    private let supabaseClient: SupabaseHouseholdMembershipService
+    private let supabaseClient: SupabaseService
     private let storedSessionKey = "korbi.auth.session"
 
     private var storedSession: StoredSession? {
         didSet { persistSession() }
     }
 
+    @Published private(set) var session: SupabaseAuthSession?
+
     init(
         userDefaults: UserDefaults = .standard,
-        supabaseClient: SupabaseHouseholdMembershipService = SupabaseClient()
+        supabaseClient: SupabaseService = SupabaseClient()
     ) {
         self.userDefaults = userDefaults
         self.supabaseClient = supabaseClient
@@ -68,10 +70,17 @@ final class AuthManager: ObservableObject {
             self.storedSession = storedSession
             currentUserEmail = storedSession.email
             isAuthenticated = true
+            session = SupabaseAuthSession(
+                accessToken: storedSession.accessToken,
+                refreshToken: storedSession.refreshToken,
+                userID: storedSession.userID,
+                email: storedSession.email
+            )
         } else {
             storedSession = nil
             currentUserEmail = nil
             isAuthenticated = false
+            session = nil
         }
     }
 
@@ -89,6 +98,7 @@ final class AuthManager: ObservableObject {
             self.storedSession = storedSession
             currentUserEmail = storedSession.email
             isAuthenticated = true
+            self.session = session
         } catch let error as SupabaseError {
             throw mapSupabaseError(error)
         } catch {
@@ -104,28 +114,7 @@ final class AuthManager: ObservableObject {
         guard password == confirmation else { throw AuthError.passwordsDoNotMatch }
 
         do {
-            let session = try await supabaseClient.signUp(email: normalizedEmail, password: password)
-            let primaryHouseholdID = UUID()
-            let storedSession = StoredSession(
-                session: session,
-                primaryHouseholdID: primaryHouseholdID,
-                fallbackEmail: normalizedEmail
-            )
-            self.storedSession = storedSession
-            currentUserEmail = storedSession.email
-            isAuthenticated = true
-
-            do {
-                try await supabaseClient.createMembership(
-                    householdID: primaryHouseholdID,
-                    userID: session.userID,
-                    role: "owner",
-                    joinedAt: Date()
-                )
-            } catch {
-                logout()
-                throw error
-            }
+            _ = try await supabaseClient.signUp(email: normalizedEmail, password: password)
         } catch let error as SupabaseError {
             throw mapSupabaseError(error)
         }
@@ -136,6 +125,7 @@ final class AuthManager: ObservableObject {
         currentUserEmail = nil
         storedSession = nil
         userDefaults.removeObject(forKey: storedSessionKey)
+        session = nil
     }
 
     func loginAsDemoUser() {
@@ -179,6 +169,14 @@ final class AuthManager: ObservableObject {
         }
 
         return UUID()
+    }
+
+    var accessToken: String? {
+        session?.accessToken ?? storedSession?.accessToken
+    }
+
+    var userID: UUID? {
+        session?.userID ?? storedSession?.userID
     }
 
     private func mapSupabaseError(_ error: SupabaseError) -> AuthError {
