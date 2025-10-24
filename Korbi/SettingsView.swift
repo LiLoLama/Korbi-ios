@@ -7,29 +7,44 @@ struct SettingsView: View {
     @State private var isPresentingShareSheet = false
     @State private var isPresentingCreateHousehold = false
     @State private var isPresentingDeleteHousehold = false
-    @State private var profileName = "Mia Berger"
-    @State private var profileEmail = "mia@example.com"
+    @State private var profileName = ""
+    @State private var profileEmail = ""
     @State private var favoriteStore = "Biomarkt am Platz"
     @State private var enableNotifications = true
     @State private var newHouseholdName = ""
     @State private var householdPendingDeletion: Household? = nil
     @State private var isConfirmingHouseholdDeletion = false
     @State private var inviteEmail = ""
+    @State private var profileStatusMessage: String?
+    @State private var householdActionError: String?
+    @State private var isSavingProfile = false
 
     var body: some View {
         NavigationStack {
             List {
                 Section(header: Text("Profil").font(KorbiTheme.Typography.title())) {
                     Button {
+                        profileStatusMessage = nil
                         isPresentingProfileEditor = true
                     } label: {
                         Label("Profil bearbeiten", systemImage: "person.crop.circle")
                             .font(KorbiTheme.Typography.body(weight: .semibold))
                             .foregroundStyle(settings.palette.primary)
                     }
+
+                    if let profileStatusMessage {
+                        Text(profileStatusMessage)
+                            .font(KorbiTheme.Typography.caption())
+                            .foregroundStyle(settings.palette.primary)
+                    }
                 }
 
                 Section(header: Text("Haushalt").font(KorbiTheme.Typography.title())) {
+                    if let householdActionError {
+                        Text(householdActionError)
+                            .font(KorbiTheme.Typography.caption())
+                            .foregroundStyle(Color.red)
+                    }
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Aktueller Haushalt")
                             .font(KorbiTheme.Typography.body(weight: .semibold))
@@ -138,7 +153,9 @@ struct SettingsView: View {
                 email: $profileEmail,
                 favoriteStore: $favoriteStore,
                 notificationsEnabled: $enableNotifications,
-                onDismiss: { isPresentingProfileEditor = false }
+                isSaving: isSavingProfile,
+                onDismiss: { isPresentingProfileEditor = false },
+                onSave: saveProfileChanges
             )
             .environmentObject(settings)
         }
@@ -158,8 +175,12 @@ struct SettingsView: View {
                 householdName: $newHouseholdName,
                 onCancel: { isPresentingCreateHousehold = false },
                 onCreate: { name in
-                    settings.createHousehold(named: name)
-                    isPresentingCreateHousehold = false
+                    Task {
+                        let created = await createHousehold(named: name)
+                        if created {
+                            isPresentingCreateHousehold = false
+                        }
+                    }
                 }
             )
             .environmentObject(settings)
@@ -177,15 +198,23 @@ struct SettingsView: View {
         }
         .alert("Haushalt löschen", isPresented: $isConfirmingHouseholdDeletion, presenting: householdPendingDeletion) { household in
             Button("Löschen", role: .destructive) {
-                settings.deleteHousehold(household)
-                isPresentingDeleteHousehold = false
-                householdPendingDeletion = nil
+                Task {
+                    await deleteHousehold(household)
+                    isPresentingDeleteHousehold = false
+                    householdPendingDeletion = nil
+                }
             }
             Button("Abbrechen", role: .cancel) {
                 householdPendingDeletion = nil
             }
         } message: { household in
             Text("Möchtest du \(household.name) wirklich löschen? Dieser Schritt kann nicht rückgängig gemacht werden.")
+        }
+        .task {
+            await initializeProfile()
+        }
+        .onChange(of: settings.selectedHouseholdID) { _ in
+            Task { await loadProfile() }
         }
     }
 }
@@ -196,13 +225,143 @@ struct SettingsView: View {
         .environmentObject(AuthManager())
 }
 
+private extension SettingsView {
+    func initializeProfile() async {
+        await MainActor {
+            profileEmail = authManager.currentUserEmail ?? profileEmail
+        }
+        await loadHouseholds()
+        await loadProfile()
+    }
+
+    func loadHouseholds() async {
+        do {
+            let fetched = try await authManager.fetchHouseholds()
+            await MainActor {
+                settings.replaceHouseholds(fetched)
+                householdActionError = nil
+            }
+        } catch {
+            await MainActor {
+                householdActionError = "Haushalte konnten nicht geladen werden."
+            }
+        }
+    }
+
+    func loadProfile() async {
+        await MainActor {
+            profileEmail = authManager.currentUserEmail ?? profileEmail
+        }
+        guard let household = settings.currentHousehold else {
+            await MainActor {
+                profileName = ""
+            }
+            return
+        }
+
+        do {
+            if let membershipName = try await authManager.membershipName(for: household.id) {
+                await MainActor {
+                    profileName = membershipName
+                    profileStatusMessage = nil
+                }
+            }
+        } catch {
+            await MainActor {
+                profileStatusMessage = "Profilname konnte nicht geladen werden."
+            }
+        }
+    }
+
+    func saveProfileChanges() {
+        guard let household = settings.currentHousehold else {
+            profileStatusMessage = "Kein Haushalt ausgewählt."
+            isPresentingProfileEditor = false
+            return
+        }
+
+        let trimmedName = profileName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            profileStatusMessage = "Bitte gib einen Namen ein."
+            return
+        }
+
+        isSavingProfile = true
+        Task {
+            do {
+                try await authManager.updateMembershipName(trimmedName, for: household.id)
+                await MainActor {
+                    profileName = trimmedName
+                    profileStatusMessage = "Profil aktualisiert."
+                    isPresentingProfileEditor = false
+                }
+            } catch {
+                await MainActor {
+                    profileStatusMessage = "Profil konnte nicht aktualisiert werden."
+                }
+            }
+            await MainActor {
+                isSavingProfile = false
+            }
+        }
+    }
+
+    func createHousehold(named name: String) async -> Bool {
+        do {
+            if let household = try await authManager.createHousehold(named: name) {
+                await MainActor {
+                    settings.upsertHousehold(household)
+                    householdActionError = nil
+                }
+                let trimmedName = profileName.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmedName.isEmpty {
+                    try? await authManager.updateMembershipName(trimmedName, for: household.id)
+                }
+                await loadProfile()
+                return true
+            } else {
+                await MainActor {
+                    householdActionError = "Bitte gib einen gültigen Namen ein."
+                }
+                return false
+            }
+        } catch {
+            await MainActor {
+                householdActionError = "Haushalt konnte nicht erstellt werden."
+            }
+            return false
+        }
+    }
+
+    func deleteHousehold(_ household: Household) async {
+        do {
+            try await authManager.deleteHousehold(household)
+            await MainActor {
+                settings.deleteHousehold(household)
+                householdActionError = nil
+            }
+            await loadProfile()
+        } catch {
+            await MainActor {
+                householdActionError = "Haushalt konnte nicht gelöscht werden."
+            }
+        }
+    }
+}
+
 private struct ProfileEditorSheet: View {
     @EnvironmentObject private var settings: KorbiSettings
     @Binding var name: String
     @Binding var email: String
     @Binding var favoriteStore: String
     @Binding var notificationsEnabled: Bool
+    let isSaving: Bool
     let onDismiss: () -> Void
+    let onSave: () -> Void
+
+    private var isSaveDisabled: Bool {
+        name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSaving
+    }
 
     var body: some View {
         NavigationStack {
@@ -230,6 +389,14 @@ private struct ProfileEditorSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Fertig", action: onDismiss)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    if isSaving {
+                        ProgressView()
+                    } else {
+                        Button("Speichern", action: onSave)
+                            .disabled(isSaveDisabled)
+                    }
                 }
             }
         }

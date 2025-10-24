@@ -6,29 +6,26 @@ enum ListColorRole {
     case pantry
 }
 
-struct ShoppingListSummary: Identifiable {
+struct ListItem: Identifiable {
+    let id: UUID
+    let name: String
+    let description: String
+    let quantity: String
+}
+
+struct CategorySummary: Identifiable {
     let id = UUID()
     let title: String
     let colorRole: ListColorRole
     let icon: String
+    let items: [ListItem]
 }
 
 struct ListsView: View {
     @EnvironmentObject private var settings: KorbiSettings
-    private let lists: [ShoppingListSummary] = [
-        .init(title: "Obst & Gemüse", colorRole: .primary, icon: "leaf.fill"),
-        .init(title: "Backwaren & Frühstück", colorRole: .accent, icon: "bag.fill"),
-        .init(title: "Milch & Kühlware", colorRole: .primary, icon: "drop.fill"),
-        .init(title: "Vorrat & Konserven", colorRole: .pantry, icon: "shippingbox.fill"),
-        .init(title: "Süßes & Snacks", colorRole: .accent, icon: "heart.fill"),
-        .init(title: "Getränke", colorRole: .primary, icon: "wineglass.fill"),
-        .init(title: "Tiefkühl", colorRole: .pantry, icon: "snowflake"),
-        .init(title: "Drogerie & Körperpflege", colorRole: .accent, icon: "hand.raised.fill"),
-        .init(title: "Haushalt & Reinigung", colorRole: .pantry, icon: "house.fill"),
-        .init(title: "Tierbedarf", colorRole: .primary, icon: "pawprint.fill"),
-        .init(title: "Baby & Kind", colorRole: .accent, icon: "person.2.fill"),
-        .init(title: "Sonstiges", colorRole: .primary, icon: "ellipsis.circle")
-    ]
+    @EnvironmentObject private var authManager: AuthManager
+    @State private var categories: [CategorySummary] = []
+    @State private var loadError: String?
 
     var body: some View {
         NavigationStack {
@@ -37,8 +34,13 @@ struct ListsView: View {
 
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 24) {
+                        if let loadError {
+                            Text(loadError)
+                                .font(KorbiTheme.Typography.caption())
+                                .foregroundStyle(Color.red)
+                        }
                         LazyVStack(spacing: 20) {
-                            ForEach(lists) { list in
+                            ForEach(categories) { list in
                                 NavigationLink(destination: listDetail(list)) {
                                     ListCard(summary: list)
                                 }
@@ -55,27 +57,119 @@ struct ListsView: View {
             .toolbarBackground(settings.palette.background.opacity(0.9), for: .navigationBar)
             .navigationTitle("Listen")
         }
+        .task {
+            await loadCategories()
+        }
     }
 
-    private func listDetail(_ summary: ShoppingListSummary) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text(summary.title)
-                .font(KorbiTheme.Typography.largeTitle())
-                .foregroundStyle(settings.palette.textPrimary)
-            Text("Lege Artikel in dieser Kategorie an, um den Überblick zu behalten.")
-                .font(KorbiTheme.Typography.body())
-                .foregroundStyle(settings.palette.textSecondary)
-            Spacer()
+    private func loadCategories() async {
+        do {
+            let supabaseItems = try await authManager.fetchItems()
+            let grouped = Dictionary(grouping: supabaseItems) { item in
+                let trimmed = item.category?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                return trimmed.isEmpty ? "Sonstiges" : trimmed
+            }
+            let sortedKeys = grouped.keys.sorted { lhs, rhs in
+                lhs.localizedCaseInsensitiveCompare(rhs) == .orderedAscending
+            }
+            let summaries = sortedKeys.enumerated().map { index, key -> CategorySummary in
+                let items = grouped[key] ?? []
+                let mappedItems = items.map { item in
+                    ListItem(
+                        id: item.id ?? UUID(),
+                        name: item.name,
+                        description: item.description ?? "",
+                        quantity: item.quantity?.isEmpty == false ? item.quantity! : "1"
+                    )
+                }
+                return CategorySummary(
+                    title: key,
+                    colorRole: colorRole(for: index),
+                    icon: iconName(for: key),
+                    items: mappedItems
+                )
+            }
+            await MainActor {
+                categories = summaries
+                loadError = summaries.isEmpty ? "Keine Listen gefunden." : nil
+            }
+        } catch {
+            await MainActor {
+                categories = []
+                loadError = "Listen konnten nicht geladen werden."
+            }
         }
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func colorRole(for index: Int) -> ListColorRole {
+        switch index % 3 {
+        case 0: return .primary
+        case 1: return .accent
+        default: return .pantry
+        }
+    }
+
+    private func iconName(for category: String) -> String {
+        let mapping: [String: String] = [
+            "Obst & Gemüse": "leaf.fill",
+            "Backwaren": "bag.fill",
+            "Backwaren & Frühstück": "bag.fill",
+            "Milch & Kühlware": "drop.fill",
+            "Vorrat & Konserven": "shippingbox.fill",
+            "Süßes & Snacks": "heart.fill",
+            "Getränke": "wineglass.fill",
+            "Tiefkühl": "snowflake",
+            "Drogerie & Körperpflege": "hand.raised.fill",
+            "Haushalt & Reinigung": "house.fill",
+            "Tierbedarf": "pawprint.fill",
+            "Baby & Kind": "person.2.fill",
+            "Sonstiges": "ellipsis.circle"
+        ]
+
+        if let icon = mapping[category] {
+            return icon
+        }
+
+        if category.localizedCaseInsensitiveContains("obst") || category.localizedCaseInsensitiveContains("gemüse") {
+            return "leaf.fill"
+        }
+        if category.localizedCaseInsensitiveContains("getränk") {
+            return "wineglass.fill"
+        }
+        if category.localizedCaseInsensitiveContains("haushalt") {
+            return "house.fill"
+        }
+        return "cart.fill"
+    }
+
+    private func listDetail(_ summary: CategorySummary) -> some View {
+        List {
+            ForEach(summary.items) { item in
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(item.name)
+                        .font(KorbiTheme.Typography.body(weight: .semibold))
+                    if !item.description.isEmpty {
+                        Text(item.description)
+                            .font(KorbiTheme.Typography.caption())
+                            .foregroundStyle(settings.palette.textSecondary)
+                    }
+                    Text("Menge: \(item.quantity)")
+                        .font(KorbiTheme.Typography.caption())
+                        .foregroundStyle(settings.palette.primary.opacity(0.75))
+                }
+                .padding(.vertical, 8)
+            }
+        }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
         .background(settings.palette.background)
+        .navigationTitle(summary.title)
     }
 }
 
 private struct ListCard: View {
     @EnvironmentObject private var settings: KorbiSettings
-    let summary: ShoppingListSummary
+    let summary: CategorySummary
 
     var body: some View {
         KorbiCard {
@@ -93,6 +187,9 @@ private struct ListCard: View {
                     .font(KorbiTheme.Typography.body(weight: .semibold))
                     .foregroundStyle(settings.palette.textPrimary)
                 Spacer()
+                Text("\(summary.items.count)")
+                    .font(KorbiTheme.Typography.caption(weight: .semibold))
+                    .foregroundStyle(settings.palette.primary.opacity(0.75))
                 Image(systemName: "chevron.right")
                     .foregroundStyle(settings.palette.primary.opacity(0.7))
             }
@@ -115,4 +212,5 @@ private struct ListCard: View {
 #Preview {
     ListsView()
         .environmentObject(KorbiSettings())
+        .environmentObject(AuthManager())
 }

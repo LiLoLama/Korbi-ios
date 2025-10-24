@@ -9,6 +9,7 @@ struct LoginView: View {
     @State private var confirmation: String = ""
     @State private var isRegistering = false
     @State private var errorMessage: String?
+    @State private var successMessage: String?
     @FocusState private var focusedField: Field?
 
     enum Field: Hashable {
@@ -101,6 +102,15 @@ struct LoginView: View {
                             .transition(.opacity)
                     }
 
+                    if let successMessage {
+                        Text(successMessage)
+                            .font(.footnote)
+                            .foregroundStyle(settings.palette.primary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                            .transition(.opacity)
+                    }
+
                     VStack(spacing: 12) {
                         Button(action: submit) {
                             Text(isRegistering ? "Jetzt registrieren" : "Anmelden")
@@ -139,6 +149,7 @@ struct LoginView: View {
         .onChange(of: isRegistering) { _ in
             withAnimation(.easeInOut) {
                 errorMessage = nil
+                successMessage = nil
                 if isRegistering {
                     focusedField = .email
                 } else {
@@ -163,10 +174,12 @@ struct LoginView: View {
 
     private func submit() {
         focusedField = nil
+        successMessage = nil
         Task { @MainActor in
             do {
                 if isRegistering {
                     try await authManager.register(email: email, password: password, confirmation: confirmation)
+                    successMessage = "Registrierung erfolgreich! Bitte überprüfe deine E-Mails zur Bestätigung."
                 } else {
                     try await authManager.login(email: email, password: password)
                 }

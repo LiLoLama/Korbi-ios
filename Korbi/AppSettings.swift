@@ -79,13 +79,29 @@ final class KorbiSettings: ObservableObject {
         }
     }
 
-    func createHousehold(named name: String) {
+    @discardableResult
+    func createHousehold(named name: String, id: UUID = UUID()) -> Household? {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedName.isEmpty else { return }
+        guard !trimmedName.isEmpty else { return nil }
 
-        let household = Household(name: trimmedName)
-        households.append(household)
+        let household = Household(id: id, name: trimmedName)
+        upsertHousehold(household)
+        return household
+    }
+
+    func upsertHousehold(_ household: Household) {
+        if let index = households.firstIndex(where: { $0.id == household.id }) {
+            households[index] = household
+        } else {
+            households.append(household)
+        }
         selectedHouseholdID = household.id
+        ensureValidSelection()
+    }
+
+    func replaceHouseholds(_ households: [Household]) {
+        self.households = households
+        ensureValidSelection()
     }
 
     func deleteHousehold(_ household: Household) {

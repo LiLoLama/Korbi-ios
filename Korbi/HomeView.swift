@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ShoppingItem: Identifiable {
-    let id = UUID()
+    let id: UUID
     let name: String
     let quantity: String
     let note: String
@@ -10,8 +10,10 @@ struct ShoppingItem: Identifiable {
 
 struct HomeView: View {
     @EnvironmentObject private var settings: KorbiSettings
+    @EnvironmentObject private var authManager: AuthManager
     @State private var showRecentPurchases = false
     @State private var todayItems: [ShoppingItem] = []
+    @State private var fetchError: String?
 
     var body: some View {
         NavigationStack {
@@ -22,6 +24,11 @@ struct HomeView: View {
                     VStack(alignment: .leading, spacing: 28) {
                         if !settings.recentPurchases.isEmpty {
                             recentPurchasesButton
+                        }
+                        if let fetchError {
+                            Text(fetchError)
+                                .font(KorbiTheme.Typography.caption())
+                                .foregroundStyle(Color.red)
                         }
                         todaysItems
                     }
@@ -41,6 +48,9 @@ struct HomeView: View {
             .navigationBarTitleDisplayMode(.large)
         }
         .accentColor(settings.palette.primary)
+        .task {
+            await loadItems()
+        }
         .sheet(isPresented: $showRecentPurchases) {
             NavigationStack {
                 List {
@@ -66,6 +76,30 @@ struct HomeView: View {
                 }
             }
             .environmentObject(settings)
+        }
+    }
+
+    private func loadItems() async {
+        do {
+            let supabaseItems = try await authManager.fetchItems()
+            let mappedItems = supabaseItems.map { item in
+                ShoppingItem(
+                    id: item.id ?? UUID(),
+                    name: item.name,
+                    quantity: item.quantity?.isEmpty == false ? item.quantity! : "1",
+                    note: item.description ?? "",
+                    isUrgent: (item.category ?? "").localizedCaseInsensitiveContains("frisch")
+                )
+            }
+            await MainActor {
+                todayItems = mappedItems
+                fetchError = nil
+            }
+        } catch {
+            await MainActor {
+                todayItems = []
+                fetchError = "Artikel konnten nicht geladen werden."
+            }
         }
     }
 
@@ -114,6 +148,12 @@ struct HomeView: View {
                                     Text(item.quantity)
                                         .font(KorbiTheme.Typography.caption())
                                         .foregroundStyle(settings.palette.primary.opacity(0.75))
+                                    if !item.note.isEmpty {
+                                        Text(item.note)
+                                            .font(KorbiTheme.Typography.caption())
+                                            .foregroundStyle(settings.palette.textSecondary)
+                                            .lineLimit(2)
+                                    }
                                 }
                                 Spacer()
 
@@ -133,11 +173,13 @@ struct HomeView: View {
 #Preview {
     HomeView()
         .environmentObject(KorbiSettings())
+        .environmentObject(AuthManager())
         .preferredColorScheme(.light)
 }
 
 #Preview("Dark") {
     HomeView()
         .environmentObject(KorbiSettings())
+        .environmentObject(AuthManager())
         .preferredColorScheme(.dark)
 }

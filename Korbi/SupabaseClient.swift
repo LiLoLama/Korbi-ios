@@ -35,8 +35,15 @@ struct SupabaseAuthSession: Codable, Equatable {
 
 protocol SupabaseHouseholdMembershipService {
     func createMembership(householdID: UUID, userID: UUID, role: String, joinedAt: Date) async throws
+    func createHousehold(id: UUID, name: String) async throws
+    func deleteHousehold(id: UUID) async throws
+    func fetchHouseholdMembers(householdID: UUID) async throws -> [SupabaseHouseholdMember]
+    func fetchHouseholds(for userID: UUID) async throws -> [SupabaseHousehold]
+    func fetchItems() async throws -> [SupabaseItem]
+    func fetchMembership(householdID: UUID, userID: UUID) async throws -> SupabaseHouseholdMember?
     func signIn(email: String, password: String) async throws -> SupabaseAuthSession
     func signUp(email: String, password: String) async throws -> SupabaseAuthSession
+    func updateMembershipName(householdID: UUID, userID: UUID, name: String) async throws
 }
 
 enum SupabaseError: LocalizedError {
@@ -74,23 +81,237 @@ final class SupabaseClient: SupabaseHouseholdMembershipService {
     }
 
     func createMembership(householdID: UUID, userID: UUID, role: String, joinedAt: Date = Date()) async throws {
-        guard let configuration else {
+        guard configuration != nil else {
             #if DEBUG
             print("Supabase configuration is missing – skipping household membership creation.")
             #endif
             return
         }
 
-        var request = URLRequest(url: configuration.url.appendingPathComponent("rest/v1/household_memberships"))
-        request.httpMethod = "POST"
-        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.addValue("application/json", forHTTPHeaderField: "Accept")
-        request.addValue(configuration.apiKey, forHTTPHeaderField: "apikey")
-        request.addValue("Bearer \(configuration.apiKey)", forHTTPHeaderField: "Authorization")
-        request.addValue("return=minimal", forHTTPHeaderField: "Prefer")
+        var request = try restRequest(
+            path: "rest/v1/household_memberships",
+            method: "POST",
+            prefer: "return=minimal"
+        )
 
         let payload = [HouseholdMembershipPayload(householdID: householdID, userID: userID, role: role, joinedAt: joinedAt)]
         request.httpBody = try encoder.encode(payload)
+
+        let (data, response) = try await urlSession.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw SupabaseError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let message = String(data: data, encoding: .utf8) ?? "Unbekannte Fehlermeldung"
+            throw SupabaseError.requestFailed(statusCode: httpResponse.statusCode, message: message)
+        }
+    }
+
+    func createHousehold(id: UUID, name: String) async throws {
+        guard configuration != nil else {
+            #if DEBUG
+            print("Supabase configuration is missing – skipping household creation.")
+            #endif
+            return
+        }
+
+        var request = try restRequest(
+            path: "rest/v1/households",
+            method: "POST",
+            prefer: "return=minimal"
+        )
+
+        let payload = [HouseholdPayload(id: id, name: name)]
+        request.httpBody = try encoder.encode(payload)
+
+        let (data, response) = try await urlSession.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw SupabaseError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let message = String(data: data, encoding: .utf8) ?? "Unbekannte Fehlermeldung"
+            throw SupabaseError.requestFailed(statusCode: httpResponse.statusCode, message: message)
+        }
+    }
+
+    func deleteHousehold(id: UUID) async throws {
+        guard configuration != nil else {
+            #if DEBUG
+            print("Supabase configuration is missing – skipping household deletion.")
+            #endif
+            return
+        }
+
+        let request = try restRequest(
+            path: "rest/v1/households",
+            method: "DELETE",
+            queryItems: [URLQueryItem(name: "id", value: "eq.\(id.uuidString)")],
+            prefer: "return=minimal"
+        )
+
+        let (data, response) = try await urlSession.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw SupabaseError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let message = String(data: data, encoding: .utf8) ?? "Unbekannte Fehlermeldung"
+            throw SupabaseError.requestFailed(statusCode: httpResponse.statusCode, message: message)
+        }
+    }
+
+    func fetchHouseholdMembers(householdID: UUID) async throws -> [SupabaseHouseholdMember] {
+        guard configuration != nil else {
+            #if DEBUG
+            print("Supabase configuration is missing – returning empty household members.")
+            #endif
+            return []
+        }
+
+        let request = try restRequest(
+            path: "rest/v1/household_memberships",
+            queryItems: [
+                URLQueryItem(name: "select", value: "id,user_id,name,role,status"),
+                URLQueryItem(name: "household_id", value: "eq.\(householdID.uuidString)")
+            ]
+        )
+
+        let (data, response) = try await urlSession.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw SupabaseError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let message = String(data: data, encoding: .utf8) ?? "Unbekannte Fehlermeldung"
+            throw SupabaseError.requestFailed(statusCode: httpResponse.statusCode, message: message)
+        }
+
+        return try decoder.decode([SupabaseHouseholdMember].self, from: data)
+    }
+
+    func fetchHouseholds(for userID: UUID) async throws -> [SupabaseHousehold] {
+        guard configuration != nil else {
+            #if DEBUG
+            print("Supabase configuration is missing – returning empty households.")
+            #endif
+            return []
+        }
+
+        let request = try restRequest(
+            path: "rest/v1/household_memberships",
+            queryItems: [
+                URLQueryItem(name: "select", value: "households(id,name)"),
+                URLQueryItem(name: "user_id", value: "eq.\(userID.uuidString)")
+            ]
+        )
+
+        let (data, response) = try await urlSession.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw SupabaseError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let message = String(data: data, encoding: .utf8) ?? "Unbekannte Fehlermeldung"
+            throw SupabaseError.requestFailed(statusCode: httpResponse.statusCode, message: message)
+        }
+
+        let memberships = try decoder.decode([HouseholdMembershipWithHousehold].self, from: data)
+        return memberships.compactMap { record in
+            if let household = record.household {
+                return SupabaseHousehold(id: household.id, name: household.name)
+            }
+            if let id = record.householdID {
+                return SupabaseHousehold(id: id, name: nil)
+            }
+            return nil
+        }
+    }
+
+    func fetchItems() async throws -> [SupabaseItem] {
+        guard configuration != nil else {
+            #if DEBUG
+            print("Supabase configuration is missing – returning empty items.")
+            #endif
+            return []
+        }
+
+        let request = try restRequest(
+            path: "rest/v1/items",
+            queryItems: [URLQueryItem(name: "select", value: "id,name,description,quantity,category")]
+        )
+
+        let (data, response) = try await urlSession.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw SupabaseError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let message = String(data: data, encoding: .utf8) ?? "Unbekannte Fehlermeldung"
+            throw SupabaseError.requestFailed(statusCode: httpResponse.statusCode, message: message)
+        }
+
+        return try decoder.decode([SupabaseItem].self, from: data)
+    }
+
+    func fetchMembership(householdID: UUID, userID: UUID) async throws -> SupabaseHouseholdMember? {
+        guard configuration != nil else {
+            #if DEBUG
+            print("Supabase configuration is missing – returning nil membership.")
+            #endif
+            return nil
+        }
+
+        let request = try restRequest(
+            path: "rest/v1/household_memberships",
+            queryItems: [
+                URLQueryItem(name: "select", value: "id,user_id,name,role,status"),
+                URLQueryItem(name: "household_id", value: "eq.\(householdID.uuidString)"),
+                URLQueryItem(name: "user_id", value: "eq.\(userID.uuidString)")
+            ]
+        )
+
+        let (data, response) = try await urlSession.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw SupabaseError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let message = String(data: data, encoding: .utf8) ?? "Unbekannte Fehlermeldung"
+            throw SupabaseError.requestFailed(statusCode: httpResponse.statusCode, message: message)
+        }
+
+        let memberships = try decoder.decode([SupabaseHouseholdMember].self, from: data)
+        return memberships.first
+    }
+
+    func updateMembershipName(householdID: UUID, userID: UUID, name: String) async throws {
+        guard configuration != nil else {
+            #if DEBUG
+            print("Supabase configuration is missing – skipping membership name update.")
+            #endif
+            return
+        }
+
+        var request = try restRequest(
+            path: "rest/v1/household_memberships",
+            method: "PATCH",
+            queryItems: [
+                URLQueryItem(name: "household_id", value: "eq.\(householdID.uuidString)"),
+                URLQueryItem(name: "user_id", value: "eq.\(userID.uuidString)")
+            ],
+            prefer: "return=minimal"
+        )
+
+        request.httpBody = try encoder.encode(HouseholdMembershipUpdatePayload(name: name))
 
         let (data, response) = try await urlSession.data(for: request)
 
@@ -167,6 +388,37 @@ private extension SupabaseClient {
     struct SupabaseUser: Decodable {
         let id: UUID
         let email: String?
+    }
+
+    func restRequest(
+        path: String,
+        method: String = "GET",
+        queryItems: [URLQueryItem] = [],
+        prefer: String? = nil
+    ) throws -> URLRequest {
+        guard let configuration else {
+            throw SupabaseError.missingConfiguration
+        }
+
+        var components = URLComponents(url: configuration.url.appendingPathComponent(path), resolvingAgainstBaseURL: false)
+        components?.queryItems = queryItems.isEmpty ? nil : queryItems
+
+        guard let url = components?.url else {
+            throw SupabaseError.invalidResponse
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        request.addValue(configuration.apiKey, forHTTPHeaderField: "apikey")
+        request.addValue("Bearer \(configuration.apiKey)", forHTTPHeaderField: "Authorization")
+        if let prefer {
+            request.addValue(prefer, forHTTPHeaderField: "Prefer")
+        }
+        if method != "GET" {
+            request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        }
+        return request
     }
 
     func authRequest(path: String, queryItems: [URLQueryItem] = [], body: AuthCredentials) throws -> URLRequest {
@@ -248,5 +500,53 @@ private extension SupabaseClient {
             case role
             case joinedAt = "joined_at"
         }
+    }
+
+    struct HouseholdPayload: Encodable {
+        let id: UUID
+        let name: String
+    }
+
+    struct HouseholdMembershipUpdatePayload: Encodable {
+        let name: String
+    }
+}
+
+struct SupabaseHousehold: Decodable {
+    let id: UUID
+    let name: String?
+}
+
+struct SupabaseHouseholdMember: Decodable {
+    let id: UUID?
+    let userID: UUID
+    let name: String?
+    let role: String?
+    let status: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case userID = "user_id"
+        case name
+        case role
+        case status
+    }
+}
+
+struct SupabaseItem: Decodable, Identifiable {
+    let id: UUID?
+    let name: String
+    let description: String?
+    let quantity: String?
+    let category: String?
+}
+
+private struct HouseholdMembershipWithHousehold: Decodable {
+    let household: SupabaseHousehold?
+    let householdID: UUID?
+
+    enum CodingKeys: String, CodingKey {
+        case household = "households"
+        case householdID = "household_id"
     }
 }

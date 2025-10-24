@@ -1,18 +1,27 @@
 import SwiftUI
 
 struct HouseholdMember: Identifiable {
-    let id = UUID()
+    let id: UUID
     let name: String
     let role: String
     let status: String
     let imageName: String
+
+    init(id: UUID = UUID(), name: String, role: String, status: String, imageName: String) {
+        self.id = id
+        self.name = name
+        self.role = role
+        self.status = status
+        self.imageName = imageName
+    }
 }
 
 struct HouseholdView: View {
     @EnvironmentObject private var settings: KorbiSettings
+    @EnvironmentObject private var authManager: AuthManager
 
     @State private var members: [HouseholdMember] = []
-
+    @State private var membersError: String?
     @State private var routines: [String] = []
 
     @State private var isPresentingRoutineCreator = false
@@ -23,6 +32,12 @@ struct HouseholdView: View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 24) {
+                    if let membersError {
+                        Text(membersError)
+                            .font(KorbiTheme.Typography.caption())
+                            .foregroundStyle(Color.red)
+                            .padding(.horizontal, 4)
+                    }
                     memberSection
                     routinesSection
                 }
@@ -50,6 +65,9 @@ struct HouseholdView: View {
                 onDismiss: { isPresentingHouseholdSwitcher = false }
             )
             .environmentObject(settings)
+        }
+        .task(id: settings.selectedHouseholdID) {
+            await loadMembers()
         }
     }
 
@@ -170,6 +188,29 @@ struct HouseholdView: View {
 }
 
 private extension HouseholdView {
+    func loadMembers() async {
+        guard let household = settings.currentHousehold else {
+            await MainActor {
+                members = []
+                membersError = nil
+            }
+            return
+        }
+
+        do {
+            let fetched = try await authManager.fetchHouseholdMembers(for: household.id)
+            await MainActor {
+                members = fetched
+                membersError = nil
+            }
+        } catch {
+            await MainActor {
+                members = []
+                membersError = "Mitglieder konnten nicht geladen werden. Bitte versuche es erneut."
+            }
+        }
+    }
+
     func presentRoutineCreator() {
         newRoutineName = ""
         isPresentingRoutineCreator = true

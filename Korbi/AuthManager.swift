@@ -31,6 +31,7 @@ enum AuthError: LocalizedError, Equatable {
 final class AuthManager: ObservableObject {
     @Published private(set) var isAuthenticated: Bool = false
     @Published private(set) var currentUserEmail: String? = nil
+    @Published private(set) var currentUserID: UUID? = nil
 
     private struct StoredSession: Codable, Equatable {
         let accessToken: String
@@ -67,10 +68,12 @@ final class AuthManager: ObservableObject {
            let storedSession = try? JSONDecoder().decode(StoredSession.self, from: data) {
             self.storedSession = storedSession
             currentUserEmail = storedSession.email
+            currentUserID = storedSession.userID
             isAuthenticated = true
         } else {
             storedSession = nil
             currentUserEmail = nil
+            currentUserID = nil
             isAuthenticated = false
         }
     }
@@ -88,6 +91,7 @@ final class AuthManager: ObservableObject {
             )
             self.storedSession = storedSession
             currentUserEmail = storedSession.email
+            currentUserID = storedSession.userID
             isAuthenticated = true
         } catch let error as SupabaseError {
             throw mapSupabaseError(error)
@@ -113,6 +117,7 @@ final class AuthManager: ObservableObject {
             )
             self.storedSession = storedSession
             currentUserEmail = storedSession.email
+            currentUserID = storedSession.userID
             isAuthenticated = true
 
             do {
@@ -134,6 +139,7 @@ final class AuthManager: ObservableObject {
     func logout() {
         isAuthenticated = false
         currentUserEmail = nil
+        currentUserID = nil
         storedSession = nil
         userDefaults.removeObject(forKey: storedSessionKey)
     }
@@ -179,6 +185,59 @@ final class AuthManager: ObservableObject {
         }
 
         return UUID()
+    }
+
+    func updateMembershipName(_ name: String, for householdID: UUID) async throws {
+        guard let userID = currentUserID else { return }
+        try await supabaseClient.updateMembershipName(householdID: householdID, userID: userID, name: name)
+    }
+
+    func fetchHouseholds() async throws -> [Household] {
+        guard let userID = currentUserID else { return [] }
+        let remoteHouseholds = try await supabaseClient.fetchHouseholds(for: userID)
+        return remoteHouseholds.map { Household(id: $0.id, name: $0.name ?? "Haushalt") }
+    }
+
+    func fetchHouseholdMembers(for householdID: UUID) async throws -> [HouseholdMember] {
+        let members = try await supabaseClient.fetchHouseholdMembers(householdID: householdID)
+        return members.map { member in
+            HouseholdMember(
+                id: member.id ?? member.userID,
+                name: member.name?.isEmpty == false ? member.name! : "Mitglied",
+                role: member.role?.isEmpty == false ? member.role! : "Mitglied",
+                status: member.status?.isEmpty == false ? member.status! : "Aktiv",
+                imageName: "person.fill"
+            )
+        }
+    }
+
+    func membershipName(for householdID: UUID) async throws -> String? {
+        guard let userID = currentUserID else { return nil }
+        let membership = try await supabaseClient.fetchMembership(householdID: householdID, userID: userID)
+        return membership?.name
+    }
+
+    func createHousehold(named name: String) async throws -> Household? {
+        guard let userID = currentUserID else { return nil }
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { return nil }
+
+        let identifier = UUID()
+        try await supabaseClient.createHousehold(id: identifier, name: trimmedName)
+        try await supabaseClient.createMembership(
+            householdID: identifier,
+            userID: userID,
+            role: "owner"
+        )
+        return Household(id: identifier, name: trimmedName)
+    }
+
+    func deleteHousehold(_ household: Household) async throws {
+        try await supabaseClient.deleteHousehold(id: household.id)
+    }
+
+    func fetchItems() async throws -> [SupabaseItem] {
+        try await supabaseClient.fetchItems()
     }
 
     private func mapSupabaseError(_ error: SupabaseError) -> AuthError {

@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject private var settings: KorbiSettings
     @EnvironmentObject private var authManager: AuthManager
+    @State private var householdLoadError: String?
 
     init() {
         UITabBar.appearance().backgroundColor = UIColor.clear
@@ -19,34 +20,95 @@ struct ContentView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: authManager.isAuthenticated)
+        .task(id: authManager.isAuthenticated) {
+            await handleAuthenticationChange()
+        }
     }
 
     private var mainAppView: some View {
         Group {
             if settings.currentHousehold != nil {
-                TabView {
-                    HomeView()
-                        .tabItem {
-                            Label("Home", systemImage: "house.fill")
-                        }
-                    ListsView()
-                        .tabItem {
-                            Label("Listen", systemImage: "list.bullet.rectangle.portrait")
-                        }
-                    HouseholdView()
-                        .tabItem {
-                            Label("Haushalt", systemImage: "person.3.fill")
-                        }
-                    SettingsView()
-                        .tabItem {
-                            Label("Einstellungen", systemImage: "gearshape.fill")
-                        }
+                ZStack(alignment: .top) {
+                    TabView {
+                        HomeView()
+                            .tabItem {
+                                Label("Home", systemImage: "house.fill")
+                            }
+                        ListsView()
+                            .tabItem {
+                                Label("Listen", systemImage: "list.bullet.rectangle.portrait")
+                            }
+                        HouseholdView()
+                            .tabItem {
+                                Label("Haushalt", systemImage: "person.3.fill")
+                            }
+                        SettingsView()
+                            .tabItem {
+                                Label("Einstellungen", systemImage: "gearshape.fill")
+                            }
+                    }
+                    .tint(settings.palette.primary)
+                    .background(settings.palette.background)
+
+                    if let householdLoadError {
+                        Text(householdLoadError)
+                            .font(.footnote)
+                            .foregroundStyle(Color.red)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .fill(Color(uiColor: .systemBackground).opacity(0.92))
+                            )
+                            .padding(.top, 12)
+                    }
                 }
-                .tint(settings.palette.primary)
-                .background(settings.palette.background)
             } else {
-                InitialHouseholdSetupView()
+                InitialHouseholdSetupView(createHouseholdAction: handleInitialHouseholdCreation)
             }
+        }
+    }
+
+    private func handleAuthenticationChange() async {
+        if authManager.isAuthenticated {
+            await refreshHouseholds()
+        } else {
+            await MainActor {
+                settings.replaceHouseholds([])
+                householdLoadError = nil
+            }
+        }
+    }
+
+    private func refreshHouseholds() async {
+        do {
+            let households = try await authManager.fetchHouseholds()
+            await MainActor {
+                settings.replaceHouseholds(households)
+                householdLoadError = nil
+            }
+        } catch {
+            await MainActor {
+                householdLoadError = "Haushalte konnten nicht geladen werden."
+            }
+        }
+    }
+
+    private func handleInitialHouseholdCreation(_ name: String) async -> Bool {
+        do {
+            if let household = try await authManager.createHousehold(named: name) {
+                await MainActor {
+                    settings.upsertHousehold(household)
+                    householdLoadError = nil
+                }
+                return true
+            }
+            return false
+        } catch {
+            await MainActor {
+                householdLoadError = "Der Haushalt konnte nicht erstellt werden."
+            }
+            return false
         }
     }
 }
@@ -61,6 +123,8 @@ private struct InitialHouseholdSetupView: View {
     @EnvironmentObject private var settings: KorbiSettings
     @State private var isPresentingCreateSheet = false
     @State private var householdName = ""
+    @State private var creationError: String?
+    let createHouseholdAction: (String) async -> Bool
 
     var body: some View {
         NavigationStack {
@@ -68,6 +132,13 @@ private struct InitialHouseholdSetupView: View {
                 KorbiBackground()
 
                 VStack(spacing: 24) {
+                    if let creationError {
+                        Text(creationError)
+                            .font(KorbiTheme.Typography.caption())
+                            .foregroundStyle(Color.red)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 24)
+                    }
                     Image(systemName: "house.lodge")
                         .font(.system(size: 48, weight: .semibold))
                         .foregroundStyle(settings.palette.primary)
@@ -109,8 +180,16 @@ private struct InitialHouseholdSetupView: View {
                 householdName: $householdName,
                 onCancel: { isPresentingCreateSheet = false },
                 onCreate: { name in
-                    settings.createHousehold(named: name)
-                    isPresentingCreateSheet = false
+                    Task {
+                        let success = await createHouseholdAction(name)
+                        if success {
+                            creationError = nil
+                            householdName = ""
+                            isPresentingCreateSheet = false
+                        } else {
+                            creationError = "Der Haushalt konnte nicht erstellt werden. Bitte versuche es erneut."
+                        }
+                    }
                 }
             )
             .environmentObject(settings)
