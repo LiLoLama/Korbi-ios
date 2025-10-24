@@ -223,7 +223,7 @@ final class AuthManager: ObservableObject {
         guard !trimmedName.isEmpty else { return nil }
 
         let identifier = UUID()
-        try await supabaseClient.createHousehold(id: identifier, name: trimmedName)
+        try await supabaseClient.createHousehold(id: identifier, name: trimmedName, ownerID: userID)
         try await supabaseClient.createMembership(
             householdID: identifier,
             userID: userID,

@@ -35,7 +35,7 @@ struct SupabaseAuthSession: Codable, Equatable {
 
 protocol SupabaseHouseholdMembershipService {
     func createMembership(householdID: UUID, userID: UUID, role: String, joinedAt: Date) async throws
-    func createHousehold(id: UUID, name: String) async throws
+    func createHousehold(id: UUID, name: String, ownerID: UUID) async throws
     func deleteHousehold(id: UUID) async throws
     func fetchHouseholdMembers(householdID: UUID) async throws -> [SupabaseHouseholdMember]
     func fetchHouseholds(for userID: UUID) async throws -> [SupabaseHousehold]
@@ -109,7 +109,7 @@ final class SupabaseClient: SupabaseHouseholdMembershipService {
         }
     }
 
-    func createHousehold(id: UUID, name: String) async throws {
+    func createHousehold(id: UUID, name: String, ownerID: UUID) async throws {
         guard configuration != nil else {
             #if DEBUG
             print("Supabase configuration is missing – skipping household creation.")
@@ -123,7 +123,7 @@ final class SupabaseClient: SupabaseHouseholdMembershipService {
             prefer: "return=minimal"
         )
 
-        let payload = [HouseholdPayload(id: id, name: name)]
+        let payload = [HouseholdPayload(id: id, name: name, ownerID: ownerID)]
         request.httpBody = try encoder.encode(payload)
 
         let (data, response) = try await urlSession.data(for: request)
@@ -505,6 +505,13 @@ private extension SupabaseClient {
     struct HouseholdPayload: Encodable {
         let id: UUID
         let name: String
+        let ownerID: UUID
+
+        enum CodingKeys: String, CodingKey {
+            case id
+            case name
+            case ownerID = "owner_id"
+        }
     }
 
     struct HouseholdMembershipUpdatePayload: Encodable {
