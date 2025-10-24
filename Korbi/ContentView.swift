@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject private var settings: KorbiSettings
     @EnvironmentObject private var authManager: AuthManager
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         UITabBar.appearance().backgroundColor = UIColor.clear
@@ -21,6 +22,12 @@ struct ContentView: View {
         .animation(.easeInOut(duration: 0.25), value: authManager.isAuthenticated)
         .task(id: authManager.session?.accessToken) {
             if let session = authManager.session {
+                await settings.refreshData(with: session)
+            }
+        }
+        .onChange(of: scenePhase) { newPhase in
+            guard newPhase == .active, let session = authManager.session else { return }
+            Task {
                 await settings.refreshData(with: session)
             }
         }

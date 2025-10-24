@@ -3,6 +3,7 @@ import SwiftUI
 struct HomeView: View {
     @EnvironmentObject private var settings: KorbiSettings
     @State private var showRecentPurchases = false
+    @State private var purchasedItems: Set<UUID> = []
 
     var body: some View {
         NavigationStack {
@@ -18,6 +19,9 @@ struct HomeView: View {
                     }
                     .padding(.horizontal, 24)
                     .padding(.top, 16)
+                }
+                .refreshable {
+                    await settings.refreshActiveSession()
                 }
                 .safeAreaInset(edge: .bottom) {
                     FloatingMicButton()
@@ -97,26 +101,28 @@ struct HomeView: View {
             } else {
                 VStack(spacing: 16) {
                     ForEach(items) { item in
-                        KorbiCard {
-                            HStack(alignment: .center, spacing: 16) {
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text(item.name)
-                                        .font(KorbiTheme.Typography.body(weight: .semibold))
-                                        .foregroundStyle(settings.palette.textPrimary)
-                                    if !item.quantity.isEmpty {
-                                        Text(item.quantity)
-                                            .font(KorbiTheme.Typography.caption())
-                                            .foregroundStyle(settings.palette.primary.opacity(0.75))
-                                    }
-                                    if !item.description.isEmpty {
-                                        Text(item.description)
-                                            .font(KorbiTheme.Typography.body())
-                                            .foregroundStyle(settings.palette.textSecondary)
-                                            .lineLimit(2)
+                        ItemRowView(
+                            item: item,
+                            isPurchased: purchasedItems.contains(item.id)
+                        )
+                        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                            Button {
+                                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                    purchasedItems.insert(item.id)
+                                }
+                                Task {
+                                    try? await Task.sleep(nanoseconds: 350_000_000)
+                                    await MainActor.run {
+                                        withAnimation(.easeInOut(duration: 0.25)) {
+                                            settings.markItemAsPurchased(item)
+                                            purchasedItems.remove(item.id)
+                                        }
                                     }
                                 }
-                                Spacer()
+                            } label: {
+                                Label("Gekauft", systemImage: "checkmark")
                             }
+                            .tint(.green)
                         }
                     }
                 }

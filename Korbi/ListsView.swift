@@ -186,7 +186,7 @@ private struct ListDetailView: View {
     }
 }
 
-private struct ItemRowView: View {
+struct ItemRowView: View {
     @EnvironmentObject private var settings: KorbiSettings
     let item: HouseholdItem
     let isPurchased: Bool
