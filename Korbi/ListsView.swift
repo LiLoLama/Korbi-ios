@@ -186,7 +186,7 @@ private struct ListDetailView: View {
     }
 }
 
-private struct ItemRowView: View {
+struct ItemRowView: View {
     @EnvironmentObject private var settings: KorbiSettings
     let item: HouseholdItem
     let isPurchased: Bool
@@ -197,25 +197,29 @@ private struct ItemRowView: View {
                 .fill(rowBackgroundColor)
                 .animation(.easeInOut(duration: 0.3), value: isPurchased)
 
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .center, spacing: 6) {
                 Text(item.name)
                     .font(KorbiTheme.Typography.body(weight: .semibold))
                     .foregroundStyle(settings.palette.textPrimary)
+                    .multilineTextAlignment(.center)
 
                 if !item.quantity.isEmpty {
                     Text(item.quantity)
                         .font(KorbiTheme.Typography.caption())
                         .foregroundStyle(settings.palette.primary.opacity(0.7))
+                        .multilineTextAlignment(.center)
                 }
 
                 if !item.description.isEmpty {
                     Text(item.description)
                         .font(KorbiTheme.Typography.body())
                         .foregroundStyle(settings.palette.textSecondary)
+                        .multilineTextAlignment(.center)
                 }
             }
             .padding(.vertical, 12)
             .padding(.horizontal, 16)
+            .frame(maxWidth: .infinity)
 
             if isPurchased {
                 Text("Gekauft")
