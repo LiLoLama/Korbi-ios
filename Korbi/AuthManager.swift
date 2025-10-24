@@ -131,12 +131,11 @@ final class AuthManager: ObservableObject {
     }
 
     private func normalize(_ email: String) -> String {
-        email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
     private func isValidEmail(_ email: String) -> Bool {
-        let pattern = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}".
-            trimmingCharacters(in: .whitespaces)
+        let pattern = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}"
         let predicate = NSPredicate(format: "SELF MATCHES %@", pattern)
         return predicate.evaluate(with: email)
     }
