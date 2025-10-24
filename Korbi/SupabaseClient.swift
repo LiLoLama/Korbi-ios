@@ -44,6 +44,7 @@ protocol SupabaseService {
     func fetchHouseholdMembers(householdID: UUID, accessToken: String) async throws -> [SupabaseHouseholdMember]
     func updateHouseholdMemberName(userID: UUID, householdID: UUID, name: String, accessToken: String) async throws
     func fetchItems(accessToken: String, householdID: UUID?) async throws -> [SupabaseItem]
+    func deleteItem(id: UUID, accessToken: String) async throws
 }
 
 enum SupabaseError: LocalizedError {
@@ -217,6 +218,16 @@ final class SupabaseClient: SupabaseService {
             accessToken: accessToken
         )
         return try await performDecodingRequest(request)
+    }
+
+    func deleteItem(id: UUID, accessToken: String) async throws {
+        let request = try dataRequest(
+            path: "rest/v1/items",
+            method: "DELETE",
+            queryItems: [URLQueryItem(name: "id", value: "eq.\(id.uuidString)")],
+            accessToken: accessToken
+        )
+        try await performEmptyRequest(request)
     }
 }
 

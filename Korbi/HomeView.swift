@@ -113,9 +113,9 @@ struct HomeView: View {
                                 }
                                 Task {
                                     try? await Task.sleep(nanoseconds: 350_000_000)
+                                    await settings.markItemAsPurchased(item)
                                     await MainActor.run {
                                         withAnimation(.easeInOut(duration: 0.25)) {
-                                            settings.markItemAsPurchased(item)
                                             purchasedItems.remove(item.id)
                                         }
                                     }

@@ -105,14 +105,29 @@ final class KorbiSettings: ObservableObject {
         }
     }
 
-    func markItemAsPurchased(_ item: HouseholdItem) {
+    func markItemAsPurchased(_ item: HouseholdItem) async {
         guard let householdID = selectedHouseholdID else { return }
 
-        var items = householdItems[householdID] ?? []
-        if let index = items.firstIndex(of: item) {
-            items.remove(at: index)
-            householdItems[householdID] = items
-            recordPurchase(item.name)
+        var didRemoveItem = false
+
+        withAnimation(.easeInOut(duration: 0.25)) {
+            var items = householdItems[householdID] ?? []
+            if let index = items.firstIndex(of: item) {
+                items.remove(at: index)
+                householdItems[householdID] = items
+                recordPurchase(item.name)
+                didRemoveItem = true
+            }
+        }
+
+        guard didRemoveItem, let session = activeSession else { return }
+
+        do {
+            try await supabaseClient.deleteItem(id: item.id, accessToken: session.accessToken)
+        } catch {
+            #if DEBUG
+            print("Failed to delete item from Supabase: \(error)")
+            #endif
         }
     }
 
