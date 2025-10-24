@@ -105,6 +105,22 @@ final class KorbiSettings: ObservableObject {
         }
     }
 
+    func markItemAsPurchased(_ item: HouseholdItem) {
+        guard let householdID = selectedHouseholdID else { return }
+
+        var items = householdItems[householdID] ?? []
+        if let index = items.firstIndex(of: item) {
+            items.remove(at: index)
+            householdItems[householdID] = items
+            recordPurchase(item.name)
+        }
+    }
+
+    func refreshActiveSession() async {
+        guard let session = activeSession else { return }
+        await refreshData(with: session)
+    }
+
     func refreshData(with session: SupabaseAuthSession) async {
         activeSession = session
         do {

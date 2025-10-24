@@ -50,6 +50,9 @@ struct ListsView: View {
                     .padding(.top, 24)
                     .padding(.bottom, 48)
                 }
+                .refreshable {
+                    await settings.refreshActiveSession()
+                }
             }
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarBackground(settings.palette.background.opacity(0.9), for: .navigationBar)
@@ -58,37 +61,7 @@ struct ListsView: View {
     }
 
     private func listDetail(_ summary: ShoppingListSummary) -> some View {
-        let items = settings.items(for: summary.title)
-        return List {
-            if items.isEmpty {
-                Text("Keine Artikel in dieser Kategorie.")
-                    .font(KorbiTheme.Typography.body())
-                    .foregroundStyle(settings.palette.textSecondary)
-                    .listRowBackground(Color.clear)
-            } else {
-                ForEach(items) { item in
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(item.name)
-                            .font(KorbiTheme.Typography.body(weight: .semibold))
-                        if !item.quantity.isEmpty {
-                            Text(item.quantity)
-                                .font(KorbiTheme.Typography.caption())
-                                .foregroundStyle(settings.palette.primary.opacity(0.7))
-                        }
-                        if !item.description.isEmpty {
-                            Text(item.description)
-                                .font(KorbiTheme.Typography.body())
-                                .foregroundStyle(settings.palette.textSecondary)
-                        }
-                    }
-                    .padding(.vertical, 8)
-                    .listRowBackground(Color.clear)
-                }
-            }
-        }
-        .scrollContentBackground(.hidden)
-        .background(KorbiBackground())
-        .navigationTitle(summary.title)
+        ListDetailView(summary: summary)
     }
 }
 
@@ -111,12 +84,32 @@ private struct ListCard: View {
                 Text(summary.title)
                     .font(KorbiTheme.Typography.body(weight: .semibold))
                     .foregroundStyle(settings.palette.textPrimary)
+                Text(itemCountText)
+                    .font(KorbiTheme.Typography.caption(weight: .semibold))
+                    .foregroundStyle(settings.palette.primary)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(settings.palette.primary.opacity(0.15))
+                    .clipShape(Capsule())
                 Spacer()
                 Image(systemName: "chevron.right")
                     .foregroundStyle(settings.palette.primary.opacity(0.7))
             }
         }
         .padding(.vertical, 4)
+    }
+
+    private var itemCount: Int {
+        settings.items(for: summary.title).count
+    }
+
+    private var itemCountText: String {
+        let count = itemCount
+        if count == 1 {
+            return "1 Artikel"
+        } else {
+            return "\(count) Artikel"
+        }
     }
 
     private var color: Color {
@@ -134,4 +127,116 @@ private struct ListCard: View {
 #Preview {
     ListsView()
         .environmentObject(KorbiSettings())
+}
+
+private struct ListDetailView: View {
+    @EnvironmentObject private var settings: KorbiSettings
+    let summary: ShoppingListSummary
+    @State private var purchasedItems: Set<UUID> = []
+
+    var body: some View {
+        List {
+            if items.isEmpty {
+                Text("Keine Artikel in dieser Kategorie.")
+                    .font(KorbiTheme.Typography.body())
+                    .foregroundStyle(settings.palette.textSecondary)
+                    .listRowBackground(Color.clear)
+            } else {
+                ForEach(items) { item in
+                    ItemRowView(
+                        item: item,
+                        isPurchased: purchasedItems.contains(item.id)
+                    )
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                        Button {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                purchasedItems.insert(item.id)
+                            }
+                            Task {
+                                try? await Task.sleep(nanoseconds: 350_000_000)
+                                await MainActor.run {
+                                    withAnimation(.easeInOut(duration: 0.25)) {
+                                        settings.markItemAsPurchased(item)
+                                        purchasedItems.remove(item.id)
+                                    }
+                                }
+                            }
+                        } label: {
+                            Label("Gekauft", systemImage: "checkmark")
+                        }
+                        .tint(.green)
+                    }
+                }
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(KorbiBackground())
+        .listStyle(.plain)
+        .navigationTitle(summary.title)
+        .refreshable {
+            await settings.refreshActiveSession()
+        }
+    }
+
+    private var items: [HouseholdItem] {
+        settings.items(for: summary.title)
+    }
+}
+
+private struct ItemRowView: View {
+    @EnvironmentObject private var settings: KorbiSettings
+    let item: HouseholdItem
+    let isPurchased: Bool
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: KorbiTheme.Metrics.compactCornerRadius, style: .continuous)
+                .fill(rowBackgroundColor)
+                .animation(.easeInOut(duration: 0.3), value: isPurchased)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(item.name)
+                    .font(KorbiTheme.Typography.body(weight: .semibold))
+                    .foregroundStyle(settings.palette.textPrimary)
+
+                if !item.quantity.isEmpty {
+                    Text(item.quantity)
+                        .font(KorbiTheme.Typography.caption())
+                        .foregroundStyle(settings.palette.primary.opacity(0.7))
+                }
+
+                if !item.description.isEmpty {
+                    Text(item.description)
+                        .font(KorbiTheme.Typography.body())
+                        .foregroundStyle(settings.palette.textSecondary)
+                }
+            }
+            .padding(.vertical, 12)
+            .padding(.horizontal, 16)
+
+            if isPurchased {
+                Text("Gekauft")
+                    .font(KorbiTheme.Typography.caption(weight: .semibold))
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(Color.green)
+                    .foregroundStyle(Color.white)
+                    .clipShape(Capsule())
+                    .transition(.scale.combined(with: .opacity))
+            }
+        }
+        .padding(.vertical, 4)
+        .padding(.horizontal, 12)
+    }
+
+    private var rowBackgroundColor: Color {
+        if isPurchased {
+            return Color.green.opacity(0.25)
+        } else {
+            return settings.palette.card.opacity(0.7)
+        }
+    }
 }
