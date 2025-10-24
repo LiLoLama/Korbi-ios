@@ -127,7 +127,7 @@ final class KorbiSettings: ObservableObject {
         }
     }
 
-    func createHousehold(named name: String) {
+    func createHousehold(named name: String) async {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else { return }
 
@@ -138,23 +138,19 @@ final class KorbiSettings: ObservableObject {
             return
         }
 
-        Task {
-            let newID = UUID()
-            do {
-                try await supabaseClient.createHousehold(id: newID, name: trimmedName, accessToken: session.accessToken)
-                await refreshData(with: session)
-                await MainActor.run {
-                    selectedHouseholdID = newID
-                }
-            } catch {
-                #if DEBUG
-                print("Failed to create household: \(error)")
-                #endif
-            }
+        let newID = UUID()
+        do {
+            try await supabaseClient.createHousehold(id: newID, name: trimmedName, accessToken: session.accessToken)
+            await refreshData(with: session)
+            selectedHouseholdID = newID
+        } catch {
+            #if DEBUG
+            print("Failed to create household: \(error)")
+            #endif
         }
     }
 
-    func deleteHousehold(_ household: Household) {
+    func deleteHousehold(_ household: Household) async {
         guard let session = activeSession else {
             #if DEBUG
             print("Cannot delete household without an active session")
@@ -162,15 +158,13 @@ final class KorbiSettings: ObservableObject {
             return
         }
 
-        Task {
-            do {
-                try await supabaseClient.deleteHousehold(id: household.id, accessToken: session.accessToken)
-                await refreshData(with: session)
-            } catch {
-                #if DEBUG
-                print("Failed to delete household: \(error)")
-                #endif
-            }
+        do {
+            try await supabaseClient.deleteHousehold(id: household.id, accessToken: session.accessToken)
+            await refreshData(with: session)
+        } catch {
+            #if DEBUG
+            print("Failed to delete household: \(error)")
+            #endif
         }
     }
 

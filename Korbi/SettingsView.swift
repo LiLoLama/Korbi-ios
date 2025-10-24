@@ -172,8 +172,12 @@ struct SettingsView: View {
                 householdName: $newHouseholdName,
                 onCancel: { isPresentingCreateHousehold = false },
                 onCreate: { name in
-                    settings.createHousehold(named: name)
-                    isPresentingCreateHousehold = false
+                    Task {
+                        await settings.createHousehold(named: name)
+                        await MainActor.run {
+                            isPresentingCreateHousehold = false
+                        }
+                    }
                 }
             )
             .environmentObject(settings)
@@ -191,9 +195,13 @@ struct SettingsView: View {
         }
         .alert("Haushalt löschen", isPresented: $isConfirmingHouseholdDeletion, presenting: householdPendingDeletion) { household in
             Button("Löschen", role: .destructive) {
-                settings.deleteHousehold(household)
-                isPresentingDeleteHousehold = false
-                householdPendingDeletion = nil
+                Task {
+                    await settings.deleteHousehold(household)
+                    await MainActor.run {
+                        isPresentingDeleteHousehold = false
+                        householdPendingDeletion = nil
+                    }
+                }
             }
             Button("Abbrechen", role: .cancel) {
                 householdPendingDeletion = nil
