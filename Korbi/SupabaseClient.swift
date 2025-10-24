@@ -39,7 +39,6 @@ protocol SupabaseHouseholdMembershipService {
     func deleteHousehold(id: UUID) async throws
     func fetchHouseholdMembers(householdID: UUID) async throws -> [SupabaseHouseholdMember]
     func fetchHouseholds(for userID: UUID) async throws -> [SupabaseHousehold]
-    func fetchPrimaryHouseholdID(for userID: UUID) async throws -> UUID?
     func fetchItems() async throws -> [SupabaseItem]
     func fetchMembership(householdID: UUID, userID: UUID) async throws -> SupabaseHouseholdMember?
     func signIn(email: String, password: String) async throws -> SupabaseAuthSession
@@ -233,39 +232,6 @@ final class SupabaseClient: SupabaseHouseholdMembershipService {
             }
             return nil
         }
-    }
-
-    func fetchPrimaryHouseholdID(for userID: UUID) async throws -> UUID? {
-        guard configuration != nil else {
-            #if DEBUG
-            print("Supabase configuration is missing – returning nil primary household ID.")
-            #endif
-            return nil
-        }
-
-        let request = try restRequest(
-            path: "rest/v1/household_memberships",
-            queryItems: [
-                URLQueryItem(name: "select", value: "household_id"),
-                URLQueryItem(name: "user_id", value: "eq.\(userID.uuidString)"),
-                URLQueryItem(name: "order", value: "joined_at.asc"),
-                URLQueryItem(name: "limit", value: "1")
-            ]
-        )
-
-        let (data, response) = try await urlSession.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw SupabaseError.invalidResponse
-        }
-
-        guard (200...299).contains(httpResponse.statusCode) else {
-            let message = String(data: data, encoding: .utf8) ?? "Unbekannte Fehlermeldung"
-            throw SupabaseError.requestFailed(statusCode: httpResponse.statusCode, message: message)
-        }
-
-        let memberships = try decoder.decode([HouseholdIdentifierRecord].self, from: data)
-        return memberships.first?.householdID
     }
 
     func fetchItems() async throws -> [SupabaseItem] {
@@ -592,10 +558,3 @@ private struct HouseholdMembershipWithHousehold: Decodable {
     }
 }
 
-private struct HouseholdIdentifierRecord: Decodable {
-    let householdID: UUID
-
-    enum CodingKeys: String, CodingKey {
-        case householdID = "household_id"
-    }
-}

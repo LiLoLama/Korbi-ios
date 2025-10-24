@@ -84,7 +84,13 @@ final class AuthManager: ObservableObject {
 
         do {
             let session = try await supabaseClient.signIn(email: normalizedEmail, password: password)
-            let primaryHouseholdID = try await existingHouseholdID(for: session) ?? UUID()
+            let primaryHouseholdID: UUID
+            if let storedSession,
+               storedSession.userID == session.userID {
+                primaryHouseholdID = storedSession.primaryHouseholdID
+            } else {
+                primaryHouseholdID = UUID()
+            }
             let storedSession = StoredSession(session: session, primaryHouseholdID: primaryHouseholdID, fallbackEmail: normalizedEmail)
             self.storedSession = storedSession
             currentUserEmail = storedSession.email
@@ -173,15 +179,6 @@ final class AuthManager: ObservableObject {
         let pattern = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}"
         let predicate = NSPredicate(format: "SELF MATCHES %@", pattern)
         return predicate.evaluate(with: email)
-    }
-
-    private func existingHouseholdID(for session: SupabaseAuthSession) async throws -> UUID? {
-        if let storedSession,
-           storedSession.userID == session.userID {
-            return storedSession.primaryHouseholdID
-        }
-
-        return try await supabaseClient.fetchPrimaryHouseholdID(for: session.userID)
     }
 
     func updateMembershipName(_ name: String, for householdID: UUID) async throws {
