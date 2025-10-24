@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject private var settings: KorbiSettings
+    @EnvironmentObject private var authManager: AuthManager
     @State private var isPresentingProfileEditor = false
     @State private var isPresentingShareSheet = false
     @State private var profileName = "Mia Berger"
@@ -60,17 +61,29 @@ struct SettingsView: View {
                         .padding(.top, 4)
                 }
 
+                Section(header: Text("Konto")) {
+                    if let email = authManager.currentUserEmail {
+                        Label(email, systemImage: "envelope.fill")
+                            .font(KorbiTheme.Typography.body(weight: .medium))
+                            .foregroundStyle(settings.palette.textSecondary)
+                    }
+
+                    Button(role: .destructive) {
+                        withAnimation(.easeInOut) {
+                            authManager.logout()
+                        }
+                    } label: {
+                        Text("Abmelden")
+                            .font(KorbiTheme.Typography.body(weight: .semibold))
+                    }
+                }
+
                 Section(header: Text("Mehr Korbi")) {
                     NavigationLink("Design Styleguide") {
                         StyleGuideView()
                     }
                     .font(KorbiTheme.Typography.body(weight: .medium))
                     .foregroundStyle(settings.palette.primary)
-
-                    Button(role: .destructive) {
-                    } label: {
-                        Text("Abmelden")
-                    }
                 }
             }
             .scrollContentBackground(.hidden)
@@ -104,6 +117,7 @@ struct SettingsView: View {
 #Preview {
     SettingsView()
         .environmentObject(KorbiSettings())
+        .environmentObject(AuthManager())
 }
 
 private struct ProfileEditorSheet: View {
