@@ -7,6 +7,7 @@ enum AuthError: LocalizedError, Equatable {
     case passwordsDoNotMatch
     case emailAlreadyRegistered
     case invalidCredentials
+    case missingConfiguration
 
     var errorDescription: String? {
         switch self {
@@ -20,6 +21,8 @@ enum AuthError: LocalizedError, Equatable {
             return "Diese E-Mail-Adresse ist bereits registriert."
         case .invalidCredentials:
             return "Die Zugangsdaten sind nicht korrekt."
+        case .missingConfiguration:
+            return "Supabase ist nicht konfiguriert."
         }
     }
 }
@@ -29,48 +32,28 @@ final class AuthManager: ObservableObject {
     @Published private(set) var isAuthenticated: Bool = false
     @Published private(set) var currentUserEmail: String? = nil
 
-    private struct StoredUser: Codable, Equatable {
-        let id: UUID
+    private struct StoredSession: Codable, Equatable {
+        let accessToken: String
+        let refreshToken: String?
+        let userID: UUID
         let email: String
-        let password: String
         let primaryHouseholdID: UUID
 
-        init(id: UUID = UUID(), email: String, password: String, primaryHouseholdID: UUID = UUID()) {
-            self.id = id
-            self.email = email
-            self.password = password
+        init(session: SupabaseAuthSession, primaryHouseholdID: UUID = UUID(), fallbackEmail: String) {
+            self.accessToken = session.accessToken
+            self.refreshToken = session.refreshToken
+            self.userID = session.userID
+            self.email = session.email.isEmpty ? fallbackEmail : session.email
             self.primaryHouseholdID = primaryHouseholdID
-        }
-
-        private enum CodingKeys: String, CodingKey {
-            case id
-            case email
-            case password
-            case primaryHouseholdID
-        }
-
-        init(from decoder: Decoder) throws {
-            let container = try decoder.container(keyedBy: CodingKeys.self)
-            id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
-            email = try container.decode(String.self, forKey: .email)
-            password = try container.decode(String.self, forKey: .password)
-            primaryHouseholdID = try container.decodeIfPresent(UUID.self, forKey: .primaryHouseholdID) ?? UUID()
-        }
-
-        func encode(to encoder: Encoder) throws {
-            var container = encoder.container(keyedBy: CodingKeys.self)
-            try container.encode(id, forKey: .id)
-            try container.encode(email, forKey: .email)
-            try container.encode(password, forKey: .password)
-            try container.encode(primaryHouseholdID, forKey: .primaryHouseholdID)
         }
     }
 
-    private let usersKey = "korbi.auth.users"
-    private let loggedInEmailKey = "korbi.auth.loggedInEmail"
+    private let userDefaults: UserDefaults
+    private let supabaseClient: SupabaseHouseholdMembershipService
+    private let storedSessionKey = "korbi.auth.session"
 
-    private var users: [String: StoredUser] {
-        didSet { persistUsers() }
+    private var storedSession: StoredSession? {
+        didSet { persistSession() }
     }
 
     init(
@@ -79,43 +62,38 @@ final class AuthManager: ObservableObject {
     ) {
         self.userDefaults = userDefaults
         self.supabaseClient = supabaseClient
-        if let data = userDefaults.data(forKey: usersKey),
-           let storedUsers = try? JSONDecoder().decode([String: StoredUser].self, from: data) {
-            users = storedUsers
-        } else {
-            users = [:]
-        }
 
-        let demoUserUpdated = ensureDemoUserExists()
-        if demoUserUpdated {
-            persistUsers()
-        }
-
-        if let loggedInEmail = userDefaults.string(forKey: loggedInEmailKey),
-           users[loggedInEmail] != nil {
-            currentUserEmail = loggedInEmail
+        if let data = userDefaults.data(forKey: storedSessionKey),
+           let storedSession = try? JSONDecoder().decode(StoredSession.self, from: data) {
+            self.storedSession = storedSession
+            currentUserEmail = storedSession.email
             isAuthenticated = true
         } else {
+            storedSession = nil
             currentUserEmail = nil
             isAuthenticated = false
         }
     }
 
-    private let userDefaults: UserDefaults
-    private let supabaseClient: SupabaseHouseholdMembershipService
-
     func login(email: String, password: String) async throws {
         let normalizedEmail = normalize(email)
-        guard
-            let user = users[normalizedEmail],
-            user.password == password
-        else {
-            throw AuthError.invalidCredentials
-        }
+        guard isValidEmail(normalizedEmail) else { throw AuthError.invalidEmail }
 
-        currentUserEmail = normalizedEmail
-        isAuthenticated = true
-        persistLoggedInEmail(normalizedEmail)
+        do {
+            let session = try await supabaseClient.signIn(email: normalizedEmail, password: password)
+            let storedSession = StoredSession(
+                session: session,
+                primaryHouseholdID: existingHouseholdID(for: session),
+                fallbackEmail: normalizedEmail
+            )
+            self.storedSession = storedSession
+            currentUserEmail = storedSession.email
+            isAuthenticated = true
+        } catch let error as SupabaseError {
+            throw mapSupabaseError(error)
+        } catch {
+            throw error
+        }
     }
 
     func register(email: String, password: String, confirmation: String) async throws {
@@ -124,40 +102,45 @@ final class AuthManager: ObservableObject {
         guard isValidEmail(normalizedEmail) else { throw AuthError.invalidEmail }
         guard password.count >= 6 else { throw AuthError.passwordTooShort }
         guard password == confirmation else { throw AuthError.passwordsDoNotMatch }
-        guard users[normalizedEmail] == nil else { throw AuthError.emailAlreadyRegistered }
-
-        let user = StoredUser(email: normalizedEmail, password: password)
-        users[normalizedEmail] = user
-        currentUserEmail = normalizedEmail
-        isAuthenticated = true
-        persistLoggedInEmail(normalizedEmail)
 
         do {
-            try await supabaseClient.createMembership(
-                householdID: user.primaryHouseholdID,
-                userID: user.id,
-                role: "owner",
-                joinedAt: Date()
+            let session = try await supabaseClient.signUp(email: normalizedEmail, password: password)
+            let primaryHouseholdID = UUID()
+            let storedSession = StoredSession(
+                session: session,
+                primaryHouseholdID: primaryHouseholdID,
+                fallbackEmail: normalizedEmail
             )
-        } catch {
-            users.removeValue(forKey: normalizedEmail)
-            logout()
-            throw error
+            self.storedSession = storedSession
+            currentUserEmail = storedSession.email
+            isAuthenticated = true
+
+            do {
+                try await supabaseClient.createMembership(
+                    householdID: primaryHouseholdID,
+                    userID: session.userID,
+                    role: "owner",
+                    joinedAt: Date()
+                )
+            } catch {
+                logout()
+                throw error
+            }
+        } catch let error as SupabaseError {
+            throw mapSupabaseError(error)
         }
     }
 
     func logout() {
         isAuthenticated = false
         currentUserEmail = nil
-        userDefaults.removeObject(forKey: loggedInEmailKey)
+        storedSession = nil
+        userDefaults.removeObject(forKey: storedSessionKey)
     }
 
     func loginAsDemoUser() {
-        let normalizedEmail = normalize(demoEmail)
-        if let demoUser = users[normalizedEmail] {
-            currentUserEmail = demoUser.email
-            isAuthenticated = true
-            persistLoggedInEmail(demoUser.email)
+        Task { @MainActor in
+            try? await login(email: demoCredentials.email, password: demoCredentials.password)
         }
     }
 
@@ -168,24 +151,15 @@ final class AuthManager: ObservableObject {
     private let demoEmail = "test@korbi.com"
     private let demoPassword = "test"
 
-    @discardableResult
-    private func ensureDemoUserExists() -> Bool {
-        let normalizedEmail = normalize(demoEmail)
-        let demoUser = StoredUser(email: normalizedEmail, password: demoPassword)
-        guard users[normalizedEmail] != demoUser else { return false }
-
-        users[normalizedEmail] = demoUser
-        return true
-    }
-
-    private func persistUsers() {
-        if let data = try? JSONEncoder().encode(users) {
-            userDefaults.set(data, forKey: usersKey)
+    private func persistSession() {
+        guard let storedSession else {
+            userDefaults.removeObject(forKey: storedSessionKey)
+            return
         }
-    }
 
-    private func persistLoggedInEmail(_ email: String) {
-        userDefaults.set(email, forKey: loggedInEmailKey)
+        if let data = try? JSONEncoder().encode(storedSession) {
+            userDefaults.set(data, forKey: storedSessionKey)
+        }
     }
 
     private func normalize(_ email: String) -> String {
@@ -196,5 +170,31 @@ final class AuthManager: ObservableObject {
         let pattern = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}"
         let predicate = NSPredicate(format: "SELF MATCHES %@", pattern)
         return predicate.evaluate(with: email)
+    }
+
+    private func existingHouseholdID(for session: SupabaseAuthSession) -> UUID {
+        if let storedSession,
+           storedSession.userID == session.userID {
+            return storedSession.primaryHouseholdID
+        }
+
+        return UUID()
+    }
+
+    private func mapSupabaseError(_ error: SupabaseError) -> AuthError {
+        switch error {
+        case .invalidResponse:
+            return .invalidCredentials
+        case let .requestFailed(statusCode, message):
+            if (statusCode == 400 || statusCode == 409) && message.localizedCaseInsensitiveContains("already") {
+                return .emailAlreadyRegistered
+            }
+            if statusCode == 400 || statusCode == 401 || statusCode == 403 || statusCode == 422 {
+                return .invalidCredentials
+            }
+            return .invalidCredentials
+        case .missingConfiguration:
+            return .missingConfiguration
+        }
     }
 }
