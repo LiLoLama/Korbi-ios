@@ -105,6 +105,7 @@ struct HomeView: View {
                             item: item,
                             isPurchased: purchasedItems.contains(item.id)
                         )
+                        .purchaseCelebration(isActive: purchasedItems.contains(item.id))
                         .swipeActions(edge: .leading, allowsFullSwipe: true) {
                             Button {
                                 withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
