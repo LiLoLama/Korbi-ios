@@ -160,6 +160,7 @@ struct FloatingMicButton: View {
         .onAppear(perform: configureRecorder)
         .onChange(of: providedWebhookURL) { _ in configureRecorder() }
         .onChange(of: settings.voiceRecordingWebhookURL) { _ in configureRecorder() }
+        .onChange(of: settings.currentHousehold?.id) { _ in configureRecorder() }
     }
 
     private var backgroundFill: LinearGradient {
@@ -222,6 +223,9 @@ struct FloatingMicButton: View {
     }
 
     private func configureRecorder() {
-        recorder.configure(webhookURL: activeWebhookURL)
+        recorder.configure(
+            webhookURL: activeWebhookURL,
+            householdID: settings.currentHousehold?.id
+        )
     }
 }
