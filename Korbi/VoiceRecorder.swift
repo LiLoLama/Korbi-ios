@@ -31,6 +31,7 @@ final class VoiceRecorder: NSObject, ObservableObject {
     private var audioRecorder: AVAudioRecorder?
     private var recordingURL: URL?
     private var webhookURL: URL?
+    private var householdID: UUID?
 
     private let recordingSettings: [String: Any] = [
         AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
@@ -39,8 +40,9 @@ final class VoiceRecorder: NSObject, ObservableObject {
         AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
     ]
 
-    func configure(webhookURL: URL) {
+    func configure(webhookURL: URL, householdID: UUID? = nil) {
         self.webhookURL = webhookURL
+        self.householdID = householdID
     }
 
     func startRecording() {
@@ -130,6 +132,10 @@ final class VoiceRecorder: NSObject, ObservableObject {
                 var body = Data()
                 let filename = url.lastPathComponent
 
+                if let householdID {
+                    body.appendTextFormField(name: "household_id", value: householdID.uuidString, boundary: boundary)
+                }
+
                 body.appendFormFieldBoundary(boundary)
                 body.appendFormFieldDisposition(name: "file", filename: filename, contentType: "audio/mp4")
                 body.append(data)
@@ -208,6 +214,13 @@ extension VoiceRecorder: AVAudioRecorderDelegate {
 }
 
 private extension Data {
+    mutating func appendTextFormField(name: String, value: String, boundary: String) {
+        appendFormFieldBoundary(boundary)
+        append("Content-Disposition: form-data; name=\"\(name)\"\r\n\r\n")
+        append(value)
+        appendLineBreak()
+    }
+
     mutating func appendFormFieldBoundary(_ boundary: String) {
         append("--\(boundary)\r\n")
     }
