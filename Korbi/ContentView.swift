@@ -1,5 +1,6 @@
 import SwiftUI
 
+@MainActor
 struct ContentView: View {
     @EnvironmentObject private var settings: KorbiSettings
     @EnvironmentObject private var authManager: AuthManager
@@ -119,6 +120,7 @@ struct ContentView: View {
         .environmentObject(AuthManager())
 }
 
+@MainActor
 private struct InitialHouseholdSetupView: View {
     @EnvironmentObject private var settings: KorbiSettings
     @State private var isPresentingCreateSheet = false
@@ -180,7 +182,7 @@ private struct InitialHouseholdSetupView: View {
                 householdName: $householdName,
                 onCancel: { isPresentingCreateSheet = false },
                 onCreate: { name in
-                    Task {
+                    Task { @MainActor in
                         let success = await createHouseholdAction(name)
                         if success {
                             creationError = nil

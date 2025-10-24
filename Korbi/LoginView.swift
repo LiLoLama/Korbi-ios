@@ -1,5 +1,6 @@
 import SwiftUI
 
+@MainActor
 struct LoginView: View {
     @EnvironmentObject private var settings: KorbiSettings
     @EnvironmentObject private var authManager: AuthManager
