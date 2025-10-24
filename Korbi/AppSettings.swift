@@ -31,9 +31,20 @@ struct KorbiColorPalette {
     )
 }
 
+struct Household: Identifiable, Equatable {
+    let id: UUID
+    var name: String
+
+    init(id: UUID = UUID(), name: String) {
+        self.id = id
+        self.name = name
+    }
+}
+
 @MainActor
 final class KorbiSettings: ObservableObject {
-    @Published var householdName: String
+    @Published private(set) var households: [Household]
+    @Published private(set) var selectedHouseholdID: UUID?
     @Published var useWarmLightMode: Bool {
         didSet {
             updatePalette()
@@ -45,29 +56,20 @@ final class KorbiSettings: ObservableObject {
     let voiceRecordingWebhookURL: URL
 
     init(
-        householdName: String = "Mein Haushalt",
+        households: [Household] = [],
+        selectedHouseholdID: UUID? = nil,
         useWarmLightMode: Bool = false,
-        recentPurchases: [String] = [
-            "Bio-Eier",
-            "Haferdrink",
-            "Frischer Basilikum",
-            "Zitronen",
-            "Tomaten",
-            "Spülmittel",
-            "Vollkornbrot",
-            "Äpfel",
-            "Parmesan",
-            "Kaffee",
-            "Joghurt",
-            "Nudeln"
-        ],
+        recentPurchases: [String] = [],
         voiceRecordingWebhookURL: URL = URL(string: "https://korbi-webhook.example/api/voice")!
     ) {
-        self.householdName = householdName
+        self.households = households
+        self.selectedHouseholdID = selectedHouseholdID
         self.useWarmLightMode = useWarmLightMode
         self.recentPurchases = recentPurchases
         self.palette = useWarmLightMode ? .warmLight : .serene
         self.voiceRecordingWebhookURL = voiceRecordingWebhookURL
+
+        ensureValidSelection()
     }
 
     func recordPurchase(_ item: String) {
@@ -77,9 +79,48 @@ final class KorbiSettings: ObservableObject {
         }
     }
 
+    func createHousehold(named name: String) {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { return }
+
+        let household = Household(name: trimmedName)
+        households.append(household)
+        selectedHouseholdID = household.id
+    }
+
+    func deleteHousehold(_ household: Household) {
+        households.removeAll { $0.id == household.id }
+        ensureValidSelection()
+    }
+
+    func selectHousehold(_ household: Household) {
+        guard households.contains(household) else { return }
+        selectedHouseholdID = household.id
+    }
+
+    var currentHousehold: Household? {
+        guard !households.isEmpty else { return nil }
+        if let selectedHouseholdID,
+           let household = households.first(where: { $0.id == selectedHouseholdID }) {
+            return household
+        }
+        return households.first
+    }
+
     private func updatePalette() {
         withAnimation(.easeInOut(duration: 0.25)) {
             palette = useWarmLightMode ? .warmLight : .serene
+        }
+    }
+
+    private func ensureValidSelection() {
+        if households.isEmpty {
+            selectedHouseholdID = nil
+        } else if let selectedHouseholdID,
+                  households.contains(where: { $0.id == selectedHouseholdID }) {
+            return
+        } else {
+            selectedHouseholdID = households.first?.id
         }
     }
 
