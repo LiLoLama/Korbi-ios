@@ -11,27 +11,13 @@ struct HouseholdMember: Identifiable {
 struct HouseholdView: View {
     @EnvironmentObject private var settings: KorbiSettings
 
-    private let members: [HouseholdMember] = [
-        .init(name: "Mia", role: "Organisation", status: "Letzter Einkauf abgeschlossen", imageName: "person.circle.fill"),
-        .init(name: "Jonas", role: "Küche", status: "Plant Abendessen am Freitag", imageName: "person.crop.circle.badge.checkmark"),
-        .init(name: "Ava", role: "Haushalt", status: "Benötigt Waschmittel", imageName: "person.crop.circle")
-    ]
+    @State private var members: [HouseholdMember] = []
 
-    @State private var routines: [String] = [
-        "Mittwochs Obstkorb auffüllen",
-        "Samstags gemeinsamer Markttag",
-        "Monatliche Vorratsübersicht"
-    ]
+    @State private var routines: [String] = []
 
     @State private var isPresentingRoutineCreator = false
     @State private var newRoutineName = ""
     @State private var isPresentingHouseholdSwitcher = false
-
-    private let availableHouseholds = [
-        "Mein Haushalt",
-        "WG Hafenstraße",
-        "Ferienhaus Ostsee"
-    ]
 
     var body: some View {
         NavigationStack {
@@ -58,8 +44,8 @@ struct HouseholdView: View {
         }
         .sheet(isPresented: $isPresentingHouseholdSwitcher) {
             HouseholdSwitcherSheet(
-                households: availableHouseholds,
-                selectedHousehold: settings.householdName,
+                households: settings.households,
+                selectedHousehold: settings.currentHousehold,
                 onSelect: switchHousehold,
                 onDismiss: { isPresentingHouseholdSwitcher = false }
             )
@@ -70,7 +56,7 @@ struct HouseholdView: View {
     private var memberSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .center) {
-                Text(settings.householdName)
+                Text(settings.currentHousehold?.name ?? "Haushalt")
                     .font(KorbiTheme.Typography.title())
                     .foregroundStyle(settings.palette.textPrimary)
 
@@ -87,33 +73,47 @@ struct HouseholdView: View {
                 .tint(settings.palette.primary)
                 .controlSize(.small)
                 .clipShape(RoundedRectangle(cornerRadius: KorbiTheme.Metrics.compactCornerRadius, style: .continuous))
+                .disabled(settings.households.count < 2)
             }
 
-            VStack(spacing: 14) {
-                ForEach(members) { member in
-                    KorbiCard {
-                        HStack(spacing: 16) {
-                            Image(systemName: member.imageName)
-                                .font(.system(size: 32))
-                                .foregroundStyle(settings.palette.primary)
-                                .frame(width: 56, height: 56)
-                                .background(
-                                    RoundedRectangle(cornerRadius: KorbiTheme.Metrics.compactCornerRadius, style: .continuous)
-                                        .fill(settings.palette.primary.opacity(0.14))
-                                )
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(member.name)
-                                    .font(KorbiTheme.Typography.body(weight: .semibold))
-                                Text(member.role)
-                                    .font(KorbiTheme.Typography.caption())
-                                    .foregroundStyle(settings.palette.primary.opacity(0.75))
-                                Text(member.status)
-                                    .font(KorbiTheme.Typography.body())
-                                    .foregroundStyle(settings.palette.textSecondary)
+            if members.isEmpty {
+                KorbiCard {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Noch keine Mitglieder")
+                            .font(KorbiTheme.Typography.body(weight: .semibold))
+                            .foregroundStyle(settings.palette.textPrimary)
+                        Text("Lade Personen ein, um gemeinsam Listen zu verwalten.")
+                            .font(KorbiTheme.Typography.body())
+                            .foregroundStyle(settings.palette.textSecondary)
+                    }
+                }
+            } else {
+                VStack(spacing: 14) {
+                    ForEach(members) { member in
+                        KorbiCard {
+                            HStack(spacing: 16) {
+                                Image(systemName: member.imageName)
+                                    .font(.system(size: 32))
+                                    .foregroundStyle(settings.palette.primary)
+                                    .frame(width: 56, height: 56)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: KorbiTheme.Metrics.compactCornerRadius, style: .continuous)
+                                            .fill(settings.palette.primary.opacity(0.14))
+                                    )
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text(member.name)
+                                        .font(KorbiTheme.Typography.body(weight: .semibold))
+                                    Text(member.role)
+                                        .font(KorbiTheme.Typography.caption())
+                                        .foregroundStyle(settings.palette.primary.opacity(0.75))
+                                    Text(member.status)
+                                        .font(KorbiTheme.Typography.body())
+                                        .foregroundStyle(settings.palette.textSecondary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .foregroundStyle(settings.palette.primary.opacity(0.7))
                             }
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .foregroundStyle(settings.palette.primary.opacity(0.7))
                         }
                     }
                 }
@@ -129,23 +129,29 @@ struct HouseholdView: View {
 
             KorbiCard {
                 VStack(alignment: .leading, spacing: 12) {
-                    ForEach(routines.indices, id: \.self) { index in
-                        HStack(alignment: .top, spacing: 12) {
-                            Circle()
-                                .fill(settings.palette.primary.opacity(0.15))
-                                .frame(width: 12, height: 12)
-                                .overlay(
-                                    Circle()
-                                        .stroke(settings.palette.primary, lineWidth: 2)
-                                )
-                            Text(routines[index])
-                                .font(KorbiTheme.Typography.body())
-                                .foregroundStyle(settings.palette.textPrimary)
-                            Spacer()
-                        }
-                        if index != routines.indices.last {
-                            Divider()
-                                .overlay(settings.palette.outline.opacity(0.4))
+                    if routines.isEmpty {
+                        Text("Lege deine erste Routine fest, um Aufgaben zu organisieren.")
+                            .font(KorbiTheme.Typography.body())
+                            .foregroundStyle(settings.palette.textSecondary)
+                    } else {
+                        ForEach(routines.indices, id: \.self) { index in
+                            HStack(alignment: .top, spacing: 12) {
+                                Circle()
+                                    .fill(settings.palette.primary.opacity(0.15))
+                                    .frame(width: 12, height: 12)
+                                    .overlay(
+                                        Circle()
+                                            .stroke(settings.palette.primary, lineWidth: 2)
+                                    )
+                                Text(routines[index])
+                                    .font(KorbiTheme.Typography.body())
+                                    .foregroundStyle(settings.palette.textPrimary)
+                                Spacer()
+                            }
+                            if index != routines.indices.last {
+                                Divider()
+                                    .overlay(settings.palette.outline.opacity(0.4))
+                            }
                         }
                     }
 
@@ -181,8 +187,8 @@ private extension HouseholdView {
         isPresentingRoutineCreator = false
     }
 
-    func switchHousehold(to name: String) {
-        settings.householdName = name
+    func switchHousehold(to household: Household) {
+        settings.selectHousehold(household)
         isPresentingHouseholdSwitcher = false
     }
 }
@@ -230,24 +236,24 @@ private struct RoutineCreatorSheet: View {
 
 private struct HouseholdSwitcherSheet: View {
     @EnvironmentObject private var settings: KorbiSettings
-    let households: [String]
-    let selectedHousehold: String
-    let onSelect: (String) -> Void
+    let households: [Household]
+    let selectedHousehold: Household?
+    let onSelect: (Household) -> Void
     let onDismiss: () -> Void
 
     var body: some View {
         NavigationStack {
             List {
                 Section(header: Text("Verfügbare Haushalte")) {
-                    ForEach(households, id: \.self) { household in
+                    ForEach(households) { household in
                         Button {
                             onSelect(household)
                         } label: {
                             HStack {
-                                Text(household)
+                                Text(household.name)
                                     .font(KorbiTheme.Typography.body(weight: .medium))
                                 Spacer()
-                                if household == selectedHousehold {
+                                if household.id == selectedHousehold?.id {
                                     Image(systemName: "checkmark.circle.fill")
                                         .foregroundStyle(settings.palette.primary)
                                 }
@@ -255,6 +261,13 @@ private struct HouseholdSwitcherSheet: View {
                         }
                         .buttonStyle(.plain)
                     }
+                }
+                if households.isEmpty {
+                    Text("Keine Haushalte verfügbar.")
+                        .font(KorbiTheme.Typography.body())
+                        .foregroundStyle(settings.palette.textSecondary)
+                        .padding(.vertical, 8)
+                        .listRowBackground(Color.clear)
                 }
             }
             .scrollContentBackground(.hidden)

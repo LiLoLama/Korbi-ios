@@ -5,10 +5,15 @@ struct SettingsView: View {
     @EnvironmentObject private var authManager: AuthManager
     @State private var isPresentingProfileEditor = false
     @State private var isPresentingShareSheet = false
+    @State private var isPresentingCreateHousehold = false
+    @State private var isPresentingDeleteHousehold = false
     @State private var profileName = "Mia Berger"
     @State private var profileEmail = "mia@example.com"
     @State private var favoriteStore = "Biomarkt am Platz"
     @State private var enableNotifications = true
+    @State private var newHouseholdName = ""
+    @State private var householdPendingDeletion: Household? = nil
+    @State private var isConfirmingHouseholdDeletion = false
     @State private var inviteEmail = ""
 
     var body: some View {
@@ -25,14 +30,48 @@ struct SettingsView: View {
                 }
 
                 Section(header: Text("Haushalt").font(KorbiTheme.Typography.title())) {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Name")
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Aktueller Haushalt")
                             .font(KorbiTheme.Typography.body(weight: .semibold))
                             .foregroundStyle(settings.palette.textSecondary)
-                        TextField("Haushalt", text: $settings.householdName)
-                            .font(KorbiTheme.Typography.body())
+
+                        if let household = settings.currentHousehold {
+                            Text(household.name)
+                                .font(KorbiTheme.Typography.body())
+                        } else {
+                            Text("Noch kein Haushalt angelegt")
+                                .font(KorbiTheme.Typography.body())
+                                .foregroundStyle(settings.palette.textSecondary)
+                        }
                     }
                     .padding(.vertical, 4)
+
+                    Button {
+                        newHouseholdName = ""
+                        isPresentingCreateHousehold = true
+                    } label: {
+                        Label("Neuen Haushalt erstellen", systemImage: "plus.circle")
+                            .font(KorbiTheme.Typography.body(weight: .semibold))
+                            .foregroundStyle(.white)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(settings.palette.primary)
+                    .controlSize(.large)
+                    .clipShape(RoundedRectangle(cornerRadius: KorbiTheme.Metrics.compactCornerRadius, style: .continuous))
+                    .padding(.vertical, 2)
+
+                    Button {
+                        householdPendingDeletion = nil
+                        isPresentingDeleteHousehold = true
+                    } label: {
+                        Label("Haushalt löschen", systemImage: "trash")
+                            .font(KorbiTheme.Typography.body(weight: .semibold))
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.red)
+                    .controlSize(.large)
+                    .clipShape(RoundedRectangle(cornerRadius: KorbiTheme.Metrics.compactCornerRadius, style: .continuous))
+                    .disabled(settings.households.isEmpty)
 
                     Button {
                         inviteEmail = ""
@@ -46,6 +85,7 @@ struct SettingsView: View {
                     .tint(settings.palette.primary)
                     .controlSize(.large)
                     .clipShape(RoundedRectangle(cornerRadius: KorbiTheme.Metrics.compactCornerRadius, style: .continuous))
+                    .disabled(settings.currentHousehold == nil)
                 }
 
                 Section(header: Text("Darstellung").font(KorbiTheme.Typography.title())) {
@@ -104,12 +144,48 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $isPresentingShareSheet) {
             HouseholdShareSheet(
-                householdName: settings.householdName,
+                householdName: settings.currentHousehold?.name,
                 inviteEmail: $inviteEmail,
                 onCancel: { isPresentingShareSheet = false },
                 onSend: { isPresentingShareSheet = false }
             )
             .environmentObject(settings)
+        }
+        .sheet(isPresented: $isPresentingCreateHousehold) {
+            CreateHouseholdSheet(
+                title: "Haushalt erstellen",
+                actionTitle: "Erstellen",
+                householdName: $newHouseholdName,
+                onCancel: { isPresentingCreateHousehold = false },
+                onCreate: { name in
+                    settings.createHousehold(named: name)
+                    isPresentingCreateHousehold = false
+                }
+            )
+            .environmentObject(settings)
+        }
+        .sheet(isPresented: $isPresentingDeleteHousehold) {
+            DeleteHouseholdSheet(
+                households: settings.households,
+                onDismiss: { isPresentingDeleteHousehold = false },
+                onConfirmDeletion: { household in
+                    householdPendingDeletion = household
+                    isConfirmingHouseholdDeletion = true
+                }
+            )
+            .environmentObject(settings)
+        }
+        .alert("Haushalt löschen", isPresented: $isConfirmingHouseholdDeletion, presenting: householdPendingDeletion) { household in
+            Button("Löschen", role: .destructive) {
+                settings.deleteHousehold(household)
+                isPresentingDeleteHousehold = false
+                householdPendingDeletion = nil
+            }
+            Button("Abbrechen", role: .cancel) {
+                householdPendingDeletion = nil
+            }
+        } message: { household in
+            Text("Möchtest du \(household.name) wirklich löschen? Dieser Schritt kann nicht rückgängig gemacht werden.")
         }
     }
 }
@@ -162,7 +238,7 @@ private struct ProfileEditorSheet: View {
 
 private struct HouseholdShareSheet: View {
     @EnvironmentObject private var settings: KorbiSettings
-    let householdName: String
+    let householdName: String?
     @Binding var inviteEmail: String
     let onCancel: () -> Void
     let onSend: () -> Void
@@ -175,7 +251,7 @@ private struct HouseholdShareSheet: View {
         NavigationStack {
             Form {
                 Section(header: Text("Haushalt teilen")) {
-                    Text("Lade weitere Personen zu \(householdName) ein, damit ihr gemeinsam planen könnt.")
+                    Text("Lade weitere Personen zu \(displayHouseholdName) ein, damit ihr gemeinsam planen könnt.")
                         .font(KorbiTheme.Typography.body())
                         .foregroundStyle(settings.palette.textSecondary)
                         .padding(.vertical, 4)
@@ -203,6 +279,111 @@ private struct HouseholdShareSheet: View {
                     Button("Senden", action: onSend)
                         .disabled(isSendDisabled)
                 }
+            }
+        }
+    }
+
+    private var displayHouseholdName: String {
+        if let householdName, !householdName.isEmpty {
+            return householdName
+        }
+        return "deinem Haushalt"
+    }
+}
+
+struct CreateHouseholdSheet: View {
+    let title: String
+    let actionTitle: String
+    @Binding var householdName: String
+    let onCancel: () -> Void
+    let onCreate: (String) -> Void
+
+    private var isCreateDisabled: Bool {
+        householdName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section(header: Text("Name des Haushalts")) {
+                    TextField("Familienname", text: $householdName)
+                        .textInputAutocapitalization(.words)
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .background(KorbiBackground())
+            .navigationTitle(title)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Abbrechen", action: onCancel)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(actionTitle) {
+                        let trimmed = householdName.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !trimmed.isEmpty else { return }
+                        onCreate(trimmed)
+                    }
+                    .disabled(isCreateDisabled)
+                }
+            }
+        }
+    }
+}
+
+struct DeleteHouseholdSheet: View {
+    @EnvironmentObject private var settings: KorbiSettings
+    let households: [Household]
+    let onDismiss: () -> Void
+    let onConfirmDeletion: (Household) -> Void
+    @State private var selectedHousehold: Household? = nil
+    var body: some View {
+        NavigationStack {
+            List {
+                Section(header: Text("Haushalt auswählen")) {
+                    ForEach(households) { household in
+                        Button {
+                            selectedHousehold = household
+                        } label: {
+                            HStack {
+                                Text(household.name)
+                                    .font(KorbiTheme.Typography.body(weight: .medium))
+                                Spacer()
+                                if selectedHousehold?.id == household.id {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(settings.palette.primary)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                if households.isEmpty {
+                    Text("Es sind keine Haushalte vorhanden.")
+                        .font(KorbiTheme.Typography.body())
+                        .foregroundStyle(settings.palette.textSecondary)
+                        .padding(.vertical, 8)
+                        .listRowBackground(Color.clear)
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .background(KorbiBackground())
+            .navigationTitle("Haushalt löschen")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Abbrechen", action: onDismiss)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Löschen") {
+                        guard let selectedHousehold else { return }
+                        onConfirmDeletion(selectedHousehold)
+                    }
+                    .disabled(selectedHousehold == nil)
+                }
+            }
+        }
+        .onAppear {
+            if selectedHousehold == nil {
+                selectedHousehold = households.first
             }
         }
     }

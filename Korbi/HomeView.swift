@@ -11,12 +11,7 @@ struct ShoppingItem: Identifiable {
 struct HomeView: View {
     @EnvironmentObject private var settings: KorbiSettings
     @State private var showRecentPurchases = false
-
-    private let todayItems: [ShoppingItem] = [
-        .init(name: "Seasonal greens", quantity: "1 bundle", note: "Farmer's market – local", isUrgent: true),
-        .init(name: "Oat milk", quantity: "2 cartons", note: "Barista blend for mornings", isUrgent: false),
-        .init(name: "Dish tablets", quantity: "1 box", note: "Eco refill pack", isUrgent: false)
-    ]
+    @State private var todayItems: [ShoppingItem] = []
 
     var body: some View {
         NavigationStack {
@@ -25,7 +20,9 @@ struct HomeView: View {
 
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 28) {
-                        recentPurchasesButton
+                        if !settings.recentPurchases.isEmpty {
+                            recentPurchasesButton
+                        }
                         todaysItems
                     }
                     .padding(.horizontal, 24)
@@ -47,9 +44,15 @@ struct HomeView: View {
         .sheet(isPresented: $showRecentPurchases) {
             NavigationStack {
                 List {
-                    ForEach(Array(settings.recentPurchases.prefix(10)), id: \.self) { item in
-                        Label(item, systemImage: "checkmark.circle")
-                            .foregroundStyle(settings.palette.primary)
+                    if settings.recentPurchases.isEmpty {
+                        Text("Keine Einkäufe vorhanden.")
+                            .font(KorbiTheme.Typography.body())
+                            .foregroundStyle(settings.palette.textSecondary)
+                    } else {
+                        ForEach(Array(settings.recentPurchases.prefix(10)), id: \.self) { item in
+                            Label(item, systemImage: "checkmark.circle")
+                                .foregroundStyle(settings.palette.primary)
+                        }
                     }
                 }
                 .scrollContentBackground(.hidden)
@@ -87,28 +90,42 @@ struct HomeView: View {
                     .foregroundStyle(settings.palette.textPrimary)
             }
 
-            VStack(spacing: 16) {
-                ForEach(todayItems) { item in
-                    KorbiCard {
-                        HStack(alignment: .center, spacing: 16) {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(item.name)
-                                    .font(KorbiTheme.Typography.body(weight: .semibold))
-                                    .foregroundStyle(settings.palette.textPrimary)
-                                Text(item.quantity)
-                                    .font(KorbiTheme.Typography.caption())
-                                    .foregroundStyle(settings.palette.primary.opacity(0.75))
-                            }
-                            Spacer()
+            if todayItems.isEmpty {
+                KorbiCard {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Noch keine Artikel geplant")
+                            .font(KorbiTheme.Typography.body(weight: .semibold))
+                            .foregroundStyle(settings.palette.textPrimary)
+                        Text("Füge neue Produkte hinzu, damit dein Einkauf organisiert bleibt.")
+                            .font(KorbiTheme.Typography.body())
+                            .foregroundStyle(settings.palette.textSecondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            } else {
+                VStack(spacing: 16) {
+                    ForEach(todayItems) { item in
+                        KorbiCard {
+                            HStack(alignment: .center, spacing: 16) {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text(item.name)
+                                        .font(KorbiTheme.Typography.body(weight: .semibold))
+                                        .foregroundStyle(settings.palette.textPrimary)
+                                    Text(item.quantity)
+                                        .font(KorbiTheme.Typography.caption())
+                                        .foregroundStyle(settings.palette.primary.opacity(0.75))
+                                }
+                                Spacer()
 
-                            if item.isUrgent {
-                                PillTag(text: "Frisch", systemImage: "sun.max")
+                                if item.isUrgent {
+                                    PillTag(text: "Frisch", systemImage: "sun.max")
+                                }
                             }
                         }
                     }
                 }
+                .padding(.vertical, 1)
             }
-            .padding(.vertical, 1)
         }
     }
 }
