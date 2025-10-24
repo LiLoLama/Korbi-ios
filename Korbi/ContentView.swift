@@ -2,12 +2,26 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var settings: KorbiSettings
+    @EnvironmentObject private var authManager: AuthManager
 
     init() {
         UITabBar.appearance().backgroundColor = UIColor.clear
     }
 
     var body: some View {
+        Group {
+            if authManager.isAuthenticated {
+                mainAppView
+                    .transition(.opacity.combined(with: .scale))
+            } else {
+                LoginView()
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: authManager.isAuthenticated)
+    }
+
+    private var mainAppView: some View {
         TabView {
             HomeView()
                 .tabItem {
@@ -34,4 +48,5 @@ struct ContentView: View {
 #Preview {
     ContentView()
         .environmentObject(KorbiSettings())
+        .environmentObject(AuthManager())
 }
