@@ -77,10 +77,10 @@ final class SupabaseClient: SupabaseService {
         self.configuration = configuration
         self.urlSession = urlSession
         let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
+        encoder.dateEncodingStrategy = SupabaseClient.dateEncodingStrategy
         self.encoder = encoder
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = SupabaseClient.dateDecodingStrategy
         self.decoder = decoder
     }
 
@@ -284,6 +284,50 @@ final class SupabaseClient: SupabaseService {
         )
         request.httpBody = try encoder.encode(InviteAcceptancePayload(token: token))
         return try await performDecodingRequest(request)
+    }
+}
+
+private extension SupabaseClient {
+    static let fractionalSecondsFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        return formatter
+    }()
+
+    static let internetDateTimeFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        return formatter
+    }()
+
+    static var dateDecodingStrategy: JSONDecoder.DateDecodingStrategy {
+        .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let string = try container.decode(String.self)
+
+            if let date = fractionalSecondsFormatter.date(from: string) {
+                return date
+            }
+
+            if let date = internetDateTimeFormatter.date(from: string) {
+                return date
+            }
+
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Date string does not match expected ISO8601 formats"
+            )
+        }
+    }
+
+    static var dateEncodingStrategy: JSONEncoder.DateEncodingStrategy {
+        .custom { date, encoder in
+            var container = encoder.singleValueContainer()
+            let string = fractionalSecondsFormatter.string(from: date)
+            try container.encode(string)
+        }
     }
 }
 
