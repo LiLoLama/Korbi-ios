@@ -225,7 +225,12 @@ struct FloatingMicButton: View {
     private func configureRecorder() {
         recorder.configure(
             webhookURL: activeWebhookURL,
-            householdID: settings.currentHousehold?.id
+            householdID: settings.currentHousehold?.id,
+            onWebhookDone: {
+                Task {
+                    await settings.refreshActiveSession()
+                }
+            }
         )
     }
 }
