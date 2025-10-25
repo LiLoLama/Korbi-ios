@@ -45,7 +45,7 @@ struct HomeView: View {
         }
         .accentColor(settings.palette.primary)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .navigationBarTrailing) {
                 Button {
                     guard !isRefreshing else { return }
                     isRefreshing = true
