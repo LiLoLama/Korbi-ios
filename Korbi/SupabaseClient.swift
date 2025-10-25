@@ -313,6 +313,18 @@ private extension SupabaseClient {
             case role = "p_role"
             case ttlHours = "p_ttl_hours"
         }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(householdID, forKey: .householdID)
+            if let email {
+                try container.encode(email, forKey: .email)
+            } else {
+                try container.encodeNil(forKey: .email)
+            }
+            try container.encode(role, forKey: .role)
+            try container.encode(ttlHours, forKey: .ttlHours)
+        }
     }
 
     struct InviteRevocationPayload: Encodable {
