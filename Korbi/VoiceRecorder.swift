@@ -32,6 +32,7 @@ final class VoiceRecorder: NSObject, ObservableObject {
     private var recordingURL: URL?
     private var webhookURL: URL?
     private var householdID: UUID?
+    private var onWebhookDone: (() -> Void)?
 
     private let recordingSettings: [String: Any] = [
         AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
@@ -40,9 +41,10 @@ final class VoiceRecorder: NSObject, ObservableObject {
         AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
     ]
 
-    func configure(webhookURL: URL, householdID: UUID? = nil) {
+    func configure(webhookURL: URL, householdID: UUID? = nil, onWebhookDone: (() -> Void)? = nil) {
         self.webhookURL = webhookURL
         self.householdID = householdID
+        self.onWebhookDone = onWebhookDone
     }
 
     func startRecording() {
@@ -142,7 +144,7 @@ final class VoiceRecorder: NSObject, ObservableObject {
                 body.appendLineBreak()
                 body.appendClosingBoundary(boundary)
 
-                let (_, response) = try await URLSession.shared.upload(for: request, from: body)
+                let (responseData, response) = try await URLSession.shared.upload(for: request, from: body)
 
                 if let httpResponse = response as? HTTPURLResponse,
                    !(200...299).contains(httpResponse.statusCode) {
@@ -151,10 +153,15 @@ final class VoiceRecorder: NSObject, ObservableObject {
 
                 try? FileManager.default.removeItem(at: url)
 
+                let shouldRefresh = Self.responseIndicatesCompletion(responseData)
+
                 await MainActor.run {
                     self.isSending = false
                     self.successMessage = "Aufnahme erfolgreich gesendet"
                     self.scheduleSuccessCleanup()
+                    if shouldRefresh {
+                        self.onWebhookDone?()
+                    }
                 }
 
                 try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
@@ -201,6 +208,40 @@ final class VoiceRecorder: NSObject, ObservableObject {
             guard let self, self.errorMessage == currentMessage else { return }
             self.errorMessage = nil
         }
+    }
+}
+
+extension VoiceRecorder {
+    private struct WebhookStatusResponse: Decodable {
+        let status: String?
+        let state: String?
+        let result: String?
+        let message: String?
+        let taskStatus: String?
+        let completion: String?
+
+        var isDone: Bool {
+            let values = [status, state, result, message, taskStatus, completion]
+            return values
+                .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+                .contains("done")
+        }
+    }
+
+    private static func responseIndicatesCompletion(_ data: Data) -> Bool {
+        guard !data.isEmpty else { return false }
+
+        if let decoded = try? JSONDecoder().decode(WebhookStatusResponse.self, from: data), decoded.isDone {
+            return true
+        }
+
+        if let text = String(data: data, encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased() {
+            return text == "done" || text == "\"done\""
+        }
+
+        return false
     }
 }
 
