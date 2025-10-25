@@ -6,6 +6,7 @@ struct HomeView: View {
     @State private var showRecentPurchases = false
     @State private var purchasedItems: Set<UUID> = []
     @State private var pendingCompletionItemID: UUID?
+    @State private var isRefreshing = false
 
     var body: some View {
         NavigationStack {
@@ -43,6 +44,32 @@ struct HomeView: View {
             .navigationBarTitleDisplayMode(.large)
         }
         .accentColor(settings.palette.primary)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    guard !isRefreshing else { return }
+                    isRefreshing = true
+                    Task {
+                        await settings.refreshActiveSession()
+                        await MainActor.run {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                isRefreshing = false
+                            }
+                        }
+                    }
+                } label: {
+                    if isRefreshing {
+                        ProgressView()
+                            .tint(settings.palette.primary)
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                            .foregroundStyle(settings.palette.primary)
+                    }
+                }
+                .accessibilityLabel("Aktualisieren")
+                .disabled(isRefreshing)
+            }
+        }
         .sheet(isPresented: $showRecentPurchases) {
             NavigationStack {
                 List {
