@@ -28,6 +28,7 @@ struct SupabaseAuthSession: Codable, Equatable {
 
 protocol SupabaseService {
     func createMembership(householdID: UUID, userID: UUID, role: String, joinedAt: Date) async throws
+    func updateMembershipEmail(userID: UUID, email: String) async throws
     func signIn(email: String, password: String) async throws -> SupabaseAuthSession
     func signUp(email: String, password: String) async throws -> SupabaseAuthSession
     func refreshToken(refreshToken: String) async throws -> SupabaseAuthSession
@@ -102,6 +103,46 @@ final class SupabaseClient: SupabaseService {
 
         let payload = [HouseholdMembershipPayload(householdID: householdID, userID: userID, role: role, joinedAt: joinedAt)]
         request.httpBody = try encoder.encode(payload)
+
+        let (data, response) = try await urlSession.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw SupabaseError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let message = String(data: data, encoding: .utf8) ?? "Unbekannte Fehlermeldung"
+            throw SupabaseError.requestFailed(statusCode: httpResponse.statusCode, message: message)
+        }
+    }
+
+    func updateMembershipEmail(userID: UUID, email: String) async throws {
+        guard let configuration else {
+            #if DEBUG
+            print("Supabase configuration is missing – skipping household membership email update.")
+            #endif
+            return
+        }
+
+        guard var components = URLComponents(url: configuration.url.appendingPathComponent("rest/v1/household_memberships"), resolvingAgainstBaseURL: false) else {
+            throw SupabaseError.invalidResponse
+        }
+        components.queryItems = [URLQueryItem(name: "user_id", value: "eq.\(userID.uuidString)")]
+
+        guard let url = components.url else {
+            throw SupabaseError.invalidResponse
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        request.addValue(configuration.apiKey, forHTTPHeaderField: "apikey")
+        request.addValue("Bearer \(configuration.apiKey)", forHTTPHeaderField: "Authorization")
+        request.addValue("return=minimal", forHTTPHeaderField: "Prefer")
+
+        let payload = ["email": email]
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload, options: [])
 
         let (data, response) = try await urlSession.data(for: request)
 
@@ -577,6 +618,7 @@ struct SupabaseHouseholdMember: Codable, Identifiable, Equatable {
     let role: String?
     let status: String?
     let name: String?
+    let email: String?
 
     enum CodingKeys: String, CodingKey {
         case householdID = "household_id"
@@ -584,6 +626,7 @@ struct SupabaseHouseholdMember: Codable, Identifiable, Equatable {
         case role
         case status
         case name
+        case email
     }
 
     var id: String {
