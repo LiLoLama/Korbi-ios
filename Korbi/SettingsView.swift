@@ -7,11 +7,13 @@ struct SettingsView: View {
     @State private var isPresentingShareSheet = false
     @State private var isPresentingCreateHousehold = false
     @State private var isPresentingDeleteHousehold = false
+    @State private var isPresentingRenameHousehold = false
     @State private var profileName = ""
     @State private var profileEmail = "mia@example.com"
     @State private var favoriteStore = "Biomarkt am Platz"
     @State private var enableNotifications = true
     @State private var newHouseholdName = ""
+    @State private var renameHouseholdName = ""
     @State private var householdPendingDeletion: Household? = nil
     @State private var isConfirmingHouseholdDeletion = false
     @State private var inviteEmail = ""
@@ -49,6 +51,16 @@ struct SettingsView: View {
                         if let household = settings.currentHousehold {
                             Text(household.name)
                                 .font(KorbiTheme.Typography.body())
+
+                            Button {
+                                renameHouseholdName = household.name
+                                isPresentingRenameHousehold = true
+                            } label: {
+                                Label("Haushalt umbenennen", systemImage: "pencil")
+                                    .font(KorbiTheme.Typography.body(weight: .semibold))
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(settings.palette.primary)
                         } else {
                             Text("Noch kein Haushalt angelegt")
                                 .font(KorbiTheme.Typography.body())
@@ -156,6 +168,16 @@ struct SettingsView: View {
             )
             .environmentObject(settings)
         }
+        .sheet(isPresented: $isPresentingRenameHousehold) {
+            RenameHouseholdSheet(
+                householdName: $renameHouseholdName,
+                onCancel: { isPresentingRenameHousehold = false },
+                onRename: { name in
+                    settings.updateCurrentHouseholdName(to: name)
+                    isPresentingRenameHousehold = false
+                }
+            )
+        }
         .sheet(isPresented: $isPresentingShareSheet) {
             HouseholdShareSheet(
                 householdName: settings.currentHousehold?.name,
@@ -252,6 +274,43 @@ private struct ProfileEditorSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Fertig", action: onDismiss)
+                }
+            }
+        }
+    }
+}
+
+private struct RenameHouseholdSheet: View {
+    @Binding var householdName: String
+    let onCancel: () -> Void
+    let onRename: (String) -> Void
+
+    private var isRenameDisabled: Bool {
+        householdName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section(header: Text("Neuer Haushaltsname")) {
+                    TextField("Haushaltsname", text: $householdName)
+                        .textInputAutocapitalization(.words)
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .background(KorbiBackground())
+            .navigationTitle("Haushalt umbenennen")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Abbrechen", action: onCancel)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Speichern") {
+                        let trimmed = householdName.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !trimmed.isEmpty else { return }
+                        onRename(trimmed)
+                    }
+                    .disabled(isRenameDisabled)
                 }
             }
         }

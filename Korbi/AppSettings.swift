@@ -105,14 +105,29 @@ final class KorbiSettings: ObservableObject {
         }
     }
 
-    func markItemAsPurchased(_ item: HouseholdItem) {
+    func markItemAsPurchased(_ item: HouseholdItem) async {
         guard let householdID = selectedHouseholdID else { return }
 
-        var items = householdItems[householdID] ?? []
-        if let index = items.firstIndex(of: item) {
-            items.remove(at: index)
-            householdItems[householdID] = items
-            recordPurchase(item.name)
+        var didRemoveItem = false
+
+        withAnimation(.easeInOut(duration: 0.25)) {
+            var items = householdItems[householdID] ?? []
+            if let index = items.firstIndex(of: item) {
+                items.remove(at: index)
+                householdItems[householdID] = items
+                recordPurchase(item.name)
+                didRemoveItem = true
+            }
+        }
+
+        guard didRemoveItem, let session = activeSession else { return }
+
+        do {
+            try await supabaseClient.deleteItem(id: item.id, accessToken: session.accessToken)
+        } catch {
+            #if DEBUG
+            print("Failed to delete item from Supabase: \(error)")
+            #endif
         }
     }
 
@@ -212,19 +227,57 @@ final class KorbiSettings: ObservableObject {
                 await MainActor.run {
                     profileName = trimmed
                     var members = householdMembers[householdID] ?? []
-                    if let index = members.firstIndex(where: { $0.id == "\(householdID.uuidString)-\(session.userID.uuidString)" }) {
+                    let memberID = "\(householdID.uuidString)-\(session.userID.uuidString)"
+                    if let index = members.firstIndex(where: { $0.id == memberID }) {
                         members[index] = HouseholdMemberProfile(
                             id: members[index].id,
                             name: trimmed,
                             role: members[index].role,
                             status: members[index].status
                         )
-                        householdMembers[householdID] = members
+                    } else {
+                        members.append(
+                            HouseholdMemberProfile(
+                                id: memberID,
+                                name: trimmed,
+                                role: nil,
+                                status: nil
+                            )
+                        )
                     }
+                    householdMembers[householdID] = members
                 }
             } catch {
                 #if DEBUG
                 print("Failed to update profile name: \(error)")
+                #endif
+            }
+        }
+    }
+
+    func updateCurrentHouseholdName(to name: String) {
+        guard let session = activeSession,
+              let householdID = selectedHouseholdID else { return }
+
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        Task {
+            do {
+                try await supabaseClient.updateHouseholdName(
+                    id: householdID,
+                    name: trimmed,
+                    accessToken: session.accessToken
+                )
+
+                await MainActor.run {
+                    if let index = households.firstIndex(where: { $0.id == householdID }) {
+                        households[index].name = trimmed
+                    }
+                }
+            } catch {
+                #if DEBUG
+                print("Failed to rename household: \(error)")
                 #endif
             }
         }

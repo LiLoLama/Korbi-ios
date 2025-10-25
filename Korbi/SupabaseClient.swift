@@ -40,9 +40,11 @@ protocol SupabaseService {
     func fetchHouseholds(accessToken: String) async throws -> [SupabaseHousehold]
     func createHousehold(id: UUID, name: String, accessToken: String) async throws
     func deleteHousehold(id: UUID, accessToken: String) async throws
+    func updateHouseholdName(id: UUID, name: String, accessToken: String) async throws
     func fetchHouseholdMembers(householdID: UUID, accessToken: String) async throws -> [SupabaseHouseholdMember]
     func updateHouseholdMemberName(userID: UUID, householdID: UUID, name: String, accessToken: String) async throws
     func fetchItems(accessToken: String, householdID: UUID?) async throws -> [SupabaseItem]
+    func deleteItem(id: UUID, accessToken: String) async throws
 }
 
 enum SupabaseError: LocalizedError {
@@ -161,6 +163,19 @@ final class SupabaseClient: SupabaseService {
         try await performEmptyRequest(request)
     }
 
+    func updateHouseholdName(id: UUID, name: String, accessToken: String) async throws {
+        var request = try dataRequest(
+            path: "rest/v1/households",
+            method: "PATCH",
+            queryItems: [URLQueryItem(name: "id", value: "eq.\(id.uuidString)")],
+            accessToken: accessToken
+        )
+        request.addValue("return=representation", forHTTPHeaderField: "Prefer")
+        let payload = ["name": name]
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload, options: [])
+        _ = try await performDecodingRequest(request) as [SupabaseHousehold]
+    }
+
     func fetchHouseholdMembers(householdID: UUID, accessToken: String) async throws -> [SupabaseHouseholdMember] {
         let request = try dataRequest(
             path: "rest/v1/household_memberships",
@@ -203,6 +218,16 @@ final class SupabaseClient: SupabaseService {
             accessToken: accessToken
         )
         return try await performDecodingRequest(request)
+    }
+
+    func deleteItem(id: UUID, accessToken: String) async throws {
+        let request = try dataRequest(
+            path: "rest/v1/items",
+            method: "DELETE",
+            queryItems: [URLQueryItem(name: "id", value: "eq.\(id.uuidString)")],
+            accessToken: accessToken
+        )
+        try await performEmptyRequest(request)
     }
 }
 

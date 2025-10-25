@@ -105,6 +105,7 @@ struct HomeView: View {
                             item: item,
                             isPurchased: purchasedItems.contains(item.id)
                         )
+                        .purchaseCelebration(isActive: purchasedItems.contains(item.id))
                         .swipeActions(edge: .leading, allowsFullSwipe: true) {
                             Button {
                                 withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
@@ -112,9 +113,9 @@ struct HomeView: View {
                                 }
                                 Task {
                                     try? await Task.sleep(nanoseconds: 350_000_000)
+                                    await settings.markItemAsPurchased(item)
                                     await MainActor.run {
                                         withAnimation(.easeInOut(duration: 0.25)) {
-                                            settings.markItemAsPurchased(item)
                                             purchasedItems.remove(item.id)
                                         }
                                     }
