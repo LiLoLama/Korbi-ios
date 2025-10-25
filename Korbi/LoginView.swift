@@ -111,41 +111,22 @@ struct LoginView: View {
                             .transition(.opacity)
                     }
 
-                    VStack(spacing: 12) {
-                        Button(action: submit) {
-                            Text(isRegistering ? "Jetzt registrieren" : "Anmelden")
-                                .font(.headline)
-                                .foregroundStyle(Color.white)
-                                .padding(.vertical, 14)
-                                .frame(maxWidth: .infinity)
-                                .background(settings.palette.primary, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.horizontal)
-
-                        Button(action: fillDemoCredentials) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "wand.and.stars.inverse")
-                                Text("Demo-Zugang verwenden")
-                            }
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(settings.palette.primary)
-                        }
-
-                        Button(action: authManager.loginAsDemoUser) {
-                            Text("Direkt als Demo-Benutzer anmelden")
-                                .font(.footnote)
-                                .underline()
-                                .foregroundStyle(settings.palette.textSecondary)
-                        }
+                    Button(action: submit) {
+                        Text(isRegistering ? "Jetzt registrieren" : "Anmelden")
+                            .font(.headline)
+                            .foregroundStyle(Color.white)
+                            .padding(.vertical, 14)
+                            .frame(maxWidth: .infinity)
+                            .background(settings.palette.primary, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                     }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal)
 
                     Spacer(minLength: 32)
                 }
                 .padding(.vertical, 48)
             }
         }
-        .onAppear(perform: presetDemoEmail)
         .onChange(of: isRegistering) { _ in
             withAnimation(.easeInOut) {
                 errorMessage = nil
@@ -157,19 +138,6 @@ struct LoginView: View {
                 }
             }
         }
-    }
-
-    private func presetDemoEmail() {
-        if email.isEmpty {
-            email = authManager.demoCredentials.email
-        }
-    }
-
-    private func fillDemoCredentials() {
-        let credentials = authManager.demoCredentials
-        email = credentials.email
-        password = credentials.password
-        confirmation = credentials.password
     }
 
     private func submit() {
