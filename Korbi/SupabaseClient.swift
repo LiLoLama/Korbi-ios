@@ -29,6 +29,7 @@ protocol SupabaseService {
     func createMembership(householdID: UUID, userID: UUID, role: String, joinedAt: Date) async throws
     func signIn(email: String, password: String) async throws -> SupabaseAuthSession
     func signUp(email: String, password: String) async throws -> SupabaseAuthSession
+    func refreshToken(refreshToken: String) async throws -> SupabaseAuthSession
     func fetchHouseholds(accessToken: String) async throws -> [SupabaseHousehold]
     func createHousehold(id: UUID, name: String, accessToken: String) async throws
     func deleteHousehold(id: UUID, accessToken: String) async throws
@@ -118,6 +119,16 @@ final class SupabaseClient: SupabaseService {
         let request = try authRequest(
             path: "auth/v1/signup",
             body: AuthCredentials(email: email, password: password)
+        )
+
+        return try await performAuthRequest(request)
+    }
+
+    func refreshToken(refreshToken: String) async throws -> SupabaseAuthSession {
+        let request = try authRequest(
+            path: "auth/v1/token",
+            queryItems: [URLQueryItem(name: "grant_type", value: "refresh_token")],
+            body: RefreshTokenPayload(refreshToken: refreshToken)
         )
 
         return try await performAuthRequest(request)
@@ -229,6 +240,14 @@ private extension SupabaseClient {
         let password: String
     }
 
+    struct RefreshTokenPayload: Encodable {
+        let refreshToken: String
+
+        enum CodingKeys: String, CodingKey {
+            case refreshToken = "refresh_token"
+        }
+    }
+
     struct AuthResponse: Decodable {
         let accessToken: String?
         let refreshToken: String?
@@ -268,7 +287,7 @@ private extension SupabaseClient {
         let email: String?
     }
 
-    func authRequest(path: String, queryItems: [URLQueryItem] = [], body: AuthCredentials) throws -> URLRequest {
+    func authRequest(path: String, queryItems: [URLQueryItem] = [], body: Encodable) throws -> URLRequest {
         guard let configuration else {
             throw SupabaseError.missingConfiguration
         }
