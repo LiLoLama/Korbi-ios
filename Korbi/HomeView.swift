@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 struct HomeView: View {
     @EnvironmentObject private var settings: KorbiSettings
@@ -25,6 +26,9 @@ struct HomeView: View {
                     .padding(.horizontal, 24)
                     .padding(.top, 16)
                 }
+                .refreshable {
+                    await refreshItemsIfNeeded()
+                }
                 .onChange(of: settings.currentHouseholdItems) { items in
                     guard let pendingID = pendingCompletionItemID else { return }
                     if !items.contains(where: { $0.id == pendingID }) {
@@ -44,6 +48,12 @@ struct HomeView: View {
             .navigationBarTitleDisplayMode(.large)
         }
         .accentColor(settings.palette.primary)
+        .onReceive(NotificationCenter.default.publisher(for: .voiceRecordingDidSend)) { _ in
+            Task {
+                try? await Task.sleep(nanoseconds: 10_000_000_000)
+                await refreshItemsIfNeeded()
+            }
+        }
         .sheet(isPresented: $showRecentPurchases) {
             NavigationStack {
                 List {
@@ -92,16 +102,7 @@ struct HomeView: View {
                     .font(KorbiTheme.Typography.title())
                     .foregroundStyle(settings.palette.textPrimary)
                 Button {
-                    guard !isRefreshing else { return }
-                    isRefreshing = true
-                    Task {
-                        await settings.refreshActiveSession()
-                        await MainActor.run {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                isRefreshing = false
-                            }
-                        }
-                    }
+                    Task { await refreshItemsIfNeeded() }
                 } label: {
                     if isRefreshing {
                         ProgressView()
@@ -210,6 +211,24 @@ struct HomeView: View {
         guard pendingCompletionItemID != nil else { return }
         withAnimation(.easeInOut(duration: 0.2)) {
             pendingCompletionItemID = nil
+        }
+    }
+
+    private func refreshItemsIfNeeded() async {
+        let didStartRefreshing = await MainActor.run { () -> Bool in
+            if isRefreshing { return false }
+            isRefreshing = true
+            return true
+        }
+
+        guard didStartRefreshing else { return }
+
+        await settings.refreshActiveSession()
+
+        await MainActor.run {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isRefreshing = false
+            }
         }
     }
 }

@@ -155,6 +155,7 @@ final class VoiceRecorder: NSObject, ObservableObject {
                     self.isSending = false
                     self.successMessage = "Aufnahme erfolgreich gesendet"
                     self.scheduleSuccessCleanup()
+                    NotificationCenter.default.post(name: .voiceRecordingDidSend, object: nil)
                 }
 
                 try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
@@ -243,4 +244,8 @@ private extension Data {
             append(data)
         }
     }
+}
+
+extension Notification.Name {
+    static let voiceRecordingDidSend = Notification.Name("voiceRecordingDidSend")
 }
