@@ -113,4 +113,8 @@ struct InviteAlert: Identifiable, Equatable {
     let title: String
     let message: String
     let kind: Kind
+
+    static func == (lhs: InviteAlert, rhs: InviteAlert) -> Bool {
+        lhs.id == rhs.id
+    }
 }
