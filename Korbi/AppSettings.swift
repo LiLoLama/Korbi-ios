@@ -170,6 +170,7 @@ final class KorbiSettings: ObservableObject {
                 await updateItems(for: currentID, session: session)
             }
         } catch {
+            guard !isCancellation(error) else { return }
             #if DEBUG
             print("Failed to refresh Supabase data: \(error)")
             #endif
@@ -375,6 +376,7 @@ final class KorbiSettings: ObservableObject {
                 }
             }
         } catch {
+            guard !isCancellation(error) else { return }
             #if DEBUG
             print("Failed to fetch household members: \(error)")
             #endif
@@ -397,9 +399,16 @@ final class KorbiSettings: ObservableObject {
                 householdItems[householdID] = mapped
             }
         } catch {
+            guard !isCancellation(error) else { return }
             #if DEBUG
             print("Failed to fetch items: \(error)")
             #endif
         }
+    }
+
+    private func isCancellation(_ error: Error) -> Bool {
+        if error is CancellationError { return true }
+        if let urlError = error as? URLError, urlError.code == .cancelled { return true }
+        return false
     }
 }
