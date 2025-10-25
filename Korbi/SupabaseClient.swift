@@ -42,7 +42,7 @@ protocol SupabaseService {
     func createInvite(
         householdID: UUID,
         email: String?,
-        role: String,
+        role: InviteRole,
         ttlHours: Int,
         accessToken: String
     ) async throws -> SupabaseInvite
@@ -246,7 +246,7 @@ final class SupabaseClient: SupabaseService {
     func createInvite(
         householdID: UUID,
         email: String?,
-        role: String,
+        role: InviteRole,
         ttlHours: Int,
         accessToken: String
     ) async throws -> SupabaseInvite {
@@ -304,7 +304,7 @@ private extension SupabaseClient {
     struct InviteCreationPayload: Encodable {
         let householdID: UUID
         let email: String?
-        let role: String
+        let role: InviteRole
         let ttlHours: Int
 
         enum CodingKeys: String, CodingKey {

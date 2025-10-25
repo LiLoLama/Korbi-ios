@@ -362,7 +362,7 @@ final class KorbiSettings: ObservableObject {
     func createInvite(
         for householdID: UUID,
         email: String? = nil,
-        role: String = "member",
+        role: InviteRole = .viewer,
         ttlHours: Int = 168
     ) async throws -> HouseholdInvite {
         guard let authManager else { throw InviteError.notAuthenticated }
