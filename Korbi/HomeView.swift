@@ -6,6 +6,7 @@ struct HomeView: View {
     @State private var showRecentPurchases = false
     @State private var purchasedItems: Set<UUID> = []
     @State private var pendingCompletionItemID: UUID?
+    @State private var isRefreshing = false
 
     var body: some View {
         NavigationStack {
@@ -90,6 +91,29 @@ struct HomeView: View {
                 Text("Heute zu besorgen")
                     .font(KorbiTheme.Typography.title())
                     .foregroundStyle(settings.palette.textPrimary)
+                Button {
+                    guard !isRefreshing else { return }
+                    isRefreshing = true
+                    Task {
+                        await settings.refreshActiveSession()
+                        await MainActor.run {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                isRefreshing = false
+                            }
+                        }
+                    }
+                } label: {
+                    if isRefreshing {
+                        ProgressView()
+                            .tint(settings.palette.primary)
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                            .foregroundStyle(settings.palette.primary)
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Aktualisieren")
+                .disabled(isRefreshing)
             }
             .contentShape(Rectangle())
             .onTapGesture(perform: cancelPendingCompletion)
