@@ -26,9 +26,6 @@ struct HomeView: View {
                     .padding(.horizontal, 24)
                     .padding(.top, 16)
                 }
-                .refreshable {
-                    await refreshItemsIfNeeded()
-                }
                 .onChange(of: settings.currentHouseholdItems) { items in
                     guard let pendingID = pendingCompletionItemID else { return }
                     if !items.contains(where: { $0.id == pendingID }) {
