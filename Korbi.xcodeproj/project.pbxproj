@@ -402,13 +402,13 @@
                                 GENERATE_INFOPLIST_FILE = YES;
                                 INFOPLIST_KEY_NSMicrophoneUsageDescription = "Korbi benötigt Zugriff auf dein Mikrofon, um Sprachaufnahmen zu erstellen und zu versenden.";
                                 INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-                                INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+                                  INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
                                 INFOPLIST_KEY_UILaunchScreen_Generation = YES;
                                 INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
                                 INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-                                INFOPLIST_KEY_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndlaW1idXZjY2ViaHVobm5qZ3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNTI5NjAsImV4cCI6MjA3NjcyODk2MH0.5RUyfzp4mBB9Rx503QmJBNUG3auvGiQzJP8Xnp5XyRc";
-                                INFOPLIST_KEY_SUPABASE_URL = "https://weimbuvccebhuhnnjgrs.supabase.co";
-                                INFOPLIST_KEY_VOICE_RECORDING_WEBHOOK_URL = "https://aitraininginstitute.app.n8n.cloud/webhook/141bce36-5b1b-4882-8a88-37e9e03f0f43";
+                                INFOPLIST_KEY_SUPABASE_ANON_KEY = "your-public-anon-key";
+                                INFOPLIST_KEY_SUPABASE_URL = "https://example.supabase.co";
+                                INFOPLIST_KEY_VOICE_RECORDING_WEBHOOK_URL = "https://korbi-webhook.example/api/voice";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
