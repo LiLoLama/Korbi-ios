@@ -398,14 +398,9 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 7Z2B5728WW;
-				ENABLE_PREVIEWS = YES;
-                                GENERATE_INFOPLIST_FILE = YES;
-                                INFOPLIST_KEY_NSMicrophoneUsageDescription = "Korbi benötigt Zugriff auf dein Mikrofon, um Sprachaufnahmen zu erstellen und zu versenden.";
-                                INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+                                ENABLE_PREVIEWS = YES;
+                                GENERATE_INFOPLIST_FILE = NO;
+                                INFOPLIST_FILE = Korbi/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -427,14 +422,9 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 7Z2B5728WW;
-				ENABLE_PREVIEWS = YES;
-                                GENERATE_INFOPLIST_FILE = YES;
-                                INFOPLIST_KEY_NSMicrophoneUsageDescription = "Korbi benötigt Zugriff auf dein Mikrofon, um Sprachaufnahmen zu erstellen und zu versenden.";
-                                INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+                                ENABLE_PREVIEWS = YES;
+                                GENERATE_INFOPLIST_FILE = NO;
+                                INFOPLIST_FILE = Korbi/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

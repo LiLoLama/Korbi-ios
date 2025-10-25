@@ -4,15 +4,7 @@ struct SupabaseConfiguration {
     let url: URL
     let apiKey: String
 
-    init?(bundle: Bundle = .main, processInfo: ProcessInfo = .processInfo) {
-        if let urlString = processInfo.environment["SUPABASE_URL"],
-           let apiKey = processInfo.environment["SUPABASE_ANON_KEY"],
-           let url = URL(string: urlString) {
-            self.url = url
-            self.apiKey = apiKey
-            return
-        }
-
+    init?(bundle: Bundle = .main) {
         guard
             let urlString = bundle.object(forInfoDictionaryKey: "SUPABASE_URL") as? String,
             let url = URL(string: urlString),
