@@ -15,6 +15,7 @@ struct ShoppingListSummary: Identifiable {
 
 struct ListsView: View {
     @EnvironmentObject private var settings: KorbiSettings
+    @EnvironmentObject private var authManager: AuthManager
     private let lists: [ShoppingListSummary] = [
         .init(title: "Obst & Gemüse", colorRole: .primary, icon: "leaf.fill"),
         .init(title: "Backwaren & Frühstück", colorRole: .accent, icon: "bag.fill"),
@@ -51,7 +52,11 @@ struct ListsView: View {
                     .padding(.bottom, 48)
                 }
                 .refreshable {
-                    await settings.refreshActiveSession()
+                    if let session = authManager.session {
+                        await settings.refreshData(with: session)
+                    } else {
+                        await settings.refreshActiveSession()
+                    }
                 }
             }
             .toolbarBackground(.visible, for: .navigationBar)
@@ -127,10 +132,12 @@ private struct ListCard: View {
 #Preview {
     ListsView()
         .environmentObject(KorbiSettings())
+        .environmentObject(AuthManager())
 }
 
 private struct ListDetailView: View {
     @EnvironmentObject private var settings: KorbiSettings
+    @EnvironmentObject private var authManager: AuthManager
     let summary: ShoppingListSummary
     @State private var purchasedItems: Set<UUID> = []
 
@@ -145,9 +152,8 @@ private struct ListDetailView: View {
                 ForEach(items) { item in
                     ItemRowView(
                         item: item,
-                        isPurchased: purchasedItems.contains(item.id)
+                        state: purchasedItems.contains(item.id) ? .confirmed : .normal
                     )
-                    .purchaseCelebration(isActive: purchasedItems.contains(item.id))
                     .listRowInsets(EdgeInsets())
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
@@ -178,7 +184,11 @@ private struct ListDetailView: View {
         .listStyle(.plain)
         .navigationTitle(summary.title)
         .refreshable {
-            await settings.refreshActiveSession()
+            if let session = authManager.session {
+                await settings.refreshData(with: session)
+            } else {
+                await settings.refreshActiveSession()
+            }
         }
     }
 
@@ -190,13 +200,19 @@ private struct ListDetailView: View {
 struct ItemRowView: View {
     @EnvironmentObject private var settings: KorbiSettings
     let item: HouseholdItem
-    let isPurchased: Bool
+    let state: CompletionState
+
+    enum CompletionState: Equatable {
+        case normal
+        case prompt
+        case confirmed
+    }
 
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: KorbiTheme.Metrics.compactCornerRadius, style: .continuous)
                 .fill(rowBackgroundColor)
-                .animation(.easeInOut(duration: 0.3), value: isPurchased)
+                .animation(.easeInOut(duration: 0.3), value: state)
 
             VStack(alignment: .center, spacing: 6) {
                 Text(item.name)
@@ -224,64 +240,71 @@ struct ItemRowView: View {
         }
         .padding(.vertical, 4)
         .padding(.horizontal, 12)
+        .overlay { overlayView }
     }
 
     private var rowBackgroundColor: Color {
-        if isPurchased {
+        switch state {
+        case .confirmed:
             return Color.green.opacity(0.25)
-        } else {
+        case .prompt:
+            return settings.palette.card.opacity(0.85)
+        case .normal:
             return settings.palette.card.opacity(0.7)
         }
     }
-}
 
-struct PurchaseCelebrationModifier: ViewModifier {
-    let isActive: Bool
+    @ViewBuilder
+    private var overlayView: some View {
+        switch state {
+        case .prompt:
+            RoundedRectangle(cornerRadius: KorbiTheme.Metrics.compactCornerRadius, style: .continuous)
+                .fill(Color.green.opacity(0.88))
+                .overlay {
+                    HStack(spacing: 12) {
+                        Image(systemName: "hand.tap.fill")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundStyle(.white)
 
-    func body(content: Content) -> some View {
-        content.overlay {
-            if isActive {
-                RoundedRectangle(cornerRadius: KorbiTheme.Metrics.compactCornerRadius, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color.green.opacity(0.85),
-                                Color.green.opacity(0.65)
-                            ],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .overlay {
-                        HStack(spacing: 12) {
-                            Image(systemName: "checkmark.seal.fill")
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundStyle(.white)
-
-                            Text("Gekauft")
-                                .font(KorbiTheme.Typography.body(weight: .semibold))
-                                .foregroundStyle(.white)
-                        }
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 14)
-                        .frame(maxWidth: .infinity)
+                        Text("Erledigt?")
+                            .font(KorbiTheme.Typography.body(weight: .semibold))
+                            .foregroundStyle(.white)
                     }
-                    .shadow(color: Color.green.opacity(0.35), radius: 12, x: 0, y: 6)
-                    .transition(
-                        .asymmetric(
-                            insertion: .move(edge: .leading).combined(with: .opacity),
-                            removal: .opacity
-                        )
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 14)
+                    .frame(maxWidth: .infinity)
+                }
+                .shadow(color: Color.green.opacity(0.35), radius: 12, x: 0, y: 6)
+                .transition(.opacity.combined(with: .scale))
+                .allowsHitTesting(false)
+        case .confirmed:
+            RoundedRectangle(cornerRadius: KorbiTheme.Metrics.compactCornerRadius, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [Color.green.opacity(0.95), Color.green.opacity(0.75)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
                     )
-                    .animation(.spring(response: 0.5, dampingFraction: 0.8), value: isActive)
-                    .allowsHitTesting(false)
-            }
-        }
-    }
-}
+                )
+                .overlay {
+                    HStack(spacing: 12) {
+                        Image(systemName: "checkmark.seal.fill")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundStyle(.white)
 
-extension View {
-    func purchaseCelebration(isActive: Bool) -> some View {
-        modifier(PurchaseCelebrationModifier(isActive: isActive))
+                        Text("Erledigt!")
+                            .font(KorbiTheme.Typography.body(weight: .semibold))
+                            .foregroundStyle(.white)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 14)
+                    .frame(maxWidth: .infinity)
+                }
+                .shadow(color: Color.green.opacity(0.35), radius: 12, x: 0, y: 6)
+                .transition(.opacity.combined(with: .scale))
+                .allowsHitTesting(false)
+        case .normal:
+            EmptyView()
+        }
     }
 }

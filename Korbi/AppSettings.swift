@@ -81,21 +81,35 @@ final class KorbiSettings: ObservableObject {
         selectedHouseholdID: UUID? = nil,
         useWarmLightMode: Bool = false,
         recentPurchases: [String] = [],
-        voiceRecordingWebhookURL: URL = URL(string: "https://korbi-webhook.example/api/voice")!,
-        supabaseClient: SupabaseService = SupabaseClient()
+        voiceRecordingWebhookURL: URL? = nil,
+        supabaseClient: SupabaseService = SupabaseClient(),
+        bundle: Bundle = .main
     ) {
         self.households = households
         self.selectedHouseholdID = selectedHouseholdID
         self.useWarmLightMode = useWarmLightMode
         self.recentPurchases = recentPurchases
         self.palette = useWarmLightMode ? .warmLight : .serene
-        self.voiceRecordingWebhookURL = voiceRecordingWebhookURL
+        self.voiceRecordingWebhookURL = voiceRecordingWebhookURL ?? KorbiSettings.resolveVoiceRecordingWebhook(from: bundle)
         self.supabaseClient = supabaseClient
         self.householdMembers = [:]
         self.householdItems = [:]
         self.profileName = ""
 
         ensureValidSelection()
+    }
+
+    private static func resolveVoiceRecordingWebhook(from bundle: Bundle) -> URL {
+        if let urlString = bundle.object(forInfoDictionaryKey: "VOICE_RECORDING_WEBHOOK_URL") as? String,
+           let url = URL(string: urlString) {
+            return url
+        }
+
+        #if DEBUG
+        print("Missing VOICE_RECORDING_WEBHOOK_URL entry in Info.plist – falling back to placeholder URL.")
+        #endif
+
+        return URL(string: "https://korbi-webhook.example/api/voice")!
     }
 
     func recordPurchase(_ item: String) {

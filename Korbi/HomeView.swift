@@ -2,13 +2,17 @@ import SwiftUI
 
 struct HomeView: View {
     @EnvironmentObject private var settings: KorbiSettings
+    @EnvironmentObject private var authManager: AuthManager
     @State private var showRecentPurchases = false
     @State private var purchasedItems: Set<UUID> = []
+    @State private var pendingCompletionItemID: UUID?
 
     var body: some View {
         NavigationStack {
             ZStack {
                 KorbiBackground()
+                    .contentShape(Rectangle())
+                    .onTapGesture(perform: cancelPendingCompletion)
 
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 28) {
@@ -21,7 +25,17 @@ struct HomeView: View {
                     .padding(.top, 16)
                 }
                 .refreshable {
-                    await settings.refreshActiveSession()
+                    if let session = authManager.session {
+                        await settings.refreshData(with: session)
+                    } else {
+                        await settings.refreshActiveSession()
+                    }
+                }
+                .onChange(of: settings.currentHouseholdItems) { items in
+                    guard let pendingID = pendingCompletionItemID else { return }
+                    if !items.contains(where: { $0.id == pendingID }) {
+                        pendingCompletionItemID = nil
+                    }
                 }
                 .safeAreaInset(edge: .bottom) {
                     FloatingMicButton()
@@ -84,6 +98,8 @@ struct HomeView: View {
                     .font(KorbiTheme.Typography.title())
                     .foregroundStyle(settings.palette.textPrimary)
             }
+            .contentShape(Rectangle())
+            .onTapGesture(perform: cancelPendingCompletion)
 
             let items = settings.currentHouseholdItems
             if items.isEmpty {
@@ -103,12 +119,15 @@ struct HomeView: View {
                     ForEach(items) { item in
                         ItemRowView(
                             item: item,
-                            isPurchased: purchasedItems.contains(item.id)
+                            state: completionState(for: item)
                         )
-                        .purchaseCelebration(isActive: purchasedItems.contains(item.id))
+                        .onTapGesture {
+                            handleItemTap(item)
+                        }
                         .swipeActions(edge: .leading, allowsFullSwipe: true) {
                             Button {
                                 withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                    pendingCompletionItemID = nil
                                     purchasedItems.insert(item.id)
                                 }
                                 Task {
@@ -131,16 +150,63 @@ struct HomeView: View {
             }
         }
     }
+
+    private func completionState(for item: HouseholdItem) -> ItemRowView.CompletionState {
+        if purchasedItems.contains(item.id) {
+            return .confirmed
+        }
+
+        if pendingCompletionItemID == item.id {
+            return .prompt
+        }
+
+        return .normal
+    }
+
+    private func handleItemTap(_ item: HouseholdItem) {
+        if pendingCompletionItemID == item.id {
+            confirmCompletion(for: item)
+        } else {
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                pendingCompletionItemID = item.id
+            }
+        }
+    }
+
+    private func confirmCompletion(for item: HouseholdItem) {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+            pendingCompletionItemID = nil
+            purchasedItems.insert(item.id)
+        }
+
+        Task {
+            await settings.markItemAsPurchased(item)
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    purchasedItems.remove(item.id)
+                }
+            }
+        }
+    }
+
+    private func cancelPendingCompletion() {
+        guard pendingCompletionItemID != nil else { return }
+        withAnimation(.easeInOut(duration: 0.2)) {
+            pendingCompletionItemID = nil
+        }
+    }
 }
 
 #Preview {
     HomeView()
         .environmentObject(KorbiSettings())
+        .environmentObject(AuthManager())
         .preferredColorScheme(.light)
 }
 
 #Preview("Dark") {
     HomeView()
         .environmentObject(KorbiSettings())
+        .environmentObject(AuthManager())
         .preferredColorScheme(.dark)
 }
