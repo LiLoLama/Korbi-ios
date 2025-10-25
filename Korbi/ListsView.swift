@@ -51,13 +51,6 @@ struct ListsView: View {
                     .padding(.top, 24)
                     .padding(.bottom, 48)
                 }
-                .refreshable {
-                    if let session = authManager.session {
-                        await settings.refreshData(with: session)
-                    } else {
-                        await settings.refreshActiveSession()
-                    }
-                }
             }
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarBackground(settings.palette.background.opacity(0.9), for: .navigationBar)
@@ -183,13 +176,6 @@ private struct ListDetailView: View {
         .background(KorbiBackground())
         .listStyle(.plain)
         .navigationTitle(summary.title)
-        .refreshable {
-            if let session = authManager.session {
-                await settings.refreshData(with: session)
-            } else {
-                await settings.refreshActiveSession()
-            }
-        }
     }
 
     private var items: [HouseholdItem] {
