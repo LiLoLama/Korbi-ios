@@ -127,7 +127,8 @@ final class AuthManager: ObservableObject {
         guard password == confirmation else { throw AuthError.passwordsDoNotMatch }
 
         do {
-            _ = try await supabaseClient.signUp(email: normalizedEmail, password: password)
+            let session = try await supabaseClient.signUp(email: normalizedEmail, password: password)
+            try await supabaseClient.updateMembershipEmail(userID: session.userID, email: normalizedEmail)
         } catch let error as SupabaseError {
             throw mapSupabaseError(error)
         }
