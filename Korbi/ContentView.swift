@@ -21,14 +21,13 @@ struct ContentView: View {
         }
         .animation(.easeInOut(duration: 0.25), value: authManager.isAuthenticated)
         .task(id: authManager.session?.accessToken) {
-            if let session = authManager.session {
-                await settings.refreshData(with: session)
-            }
+            guard authManager.isAuthenticated else { return }
+            await settings.refreshActiveSession()
         }
         .onChange(of: scenePhase) { newPhase in
-            guard newPhase == .active, let session = authManager.session else { return }
+            guard newPhase == .active, authManager.isAuthenticated else { return }
             Task {
-                await settings.refreshData(with: session)
+                await settings.refreshActiveSession()
             }
         }
     }

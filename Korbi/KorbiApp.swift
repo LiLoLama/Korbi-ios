@@ -30,8 +30,11 @@ struct KorbiApp: App {
     init() {
         let client = SupabaseClient()
         self.supabaseClient = client
-        _settings = StateObject(wrappedValue: KorbiSettings(supabaseClient: client))
-        _authManager = StateObject(wrappedValue: AuthManager(supabaseClient: client))
+        let settings = KorbiSettings(supabaseClient: client)
+        let authManager = AuthManager(supabaseClient: client)
+        settings.configure(authManager: authManager)
+        _settings = StateObject(wrappedValue: settings)
+        _authManager = StateObject(wrappedValue: authManager)
     }
 
     var body: some Scene {

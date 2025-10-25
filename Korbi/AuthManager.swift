@@ -38,6 +38,7 @@ final class AuthManager: ObservableObject {
         let userID: UUID
         let email: String
         let primaryHouseholdID: UUID
+        let accessTokenExpiresAt: Date?
 
         init(session: SupabaseAuthSession, primaryHouseholdID: UUID = UUID(), fallbackEmail: String) {
             self.accessToken = session.accessToken
@@ -45,18 +46,21 @@ final class AuthManager: ObservableObject {
             self.userID = session.userID
             self.email = session.email.isEmpty ? fallbackEmail : session.email
             self.primaryHouseholdID = primaryHouseholdID
+            self.accessTokenExpiresAt = session.expiresAt
         }
     }
 
     private let userDefaults: UserDefaults
     private let supabaseClient: SupabaseService
     private let storedSessionKey = "korbi.auth.session"
+    private let tokenRefreshLeeway: TimeInterval = 300
 
     private var storedSession: StoredSession? {
         didSet { persistSession() }
     }
 
     @Published private(set) var session: SupabaseAuthSession?
+    private var refreshTask: Task<Void, Never>?
 
     init(
         userDefaults: UserDefaults = .standard,
@@ -74,13 +78,21 @@ final class AuthManager: ObservableObject {
                 accessToken: storedSession.accessToken,
                 refreshToken: storedSession.refreshToken,
                 userID: storedSession.userID,
-                email: storedSession.email
+                email: storedSession.email,
+                expiresAt: storedSession.accessTokenExpiresAt
             )
         } else {
             storedSession = nil
             currentUserEmail = nil
             isAuthenticated = false
             session = nil
+        }
+
+        if let session {
+            scheduleRefresh(for: session)
+            Task { @MainActor [weak self] in
+                try? await self?.refreshSessionIfNeeded()
+            }
         }
     }
 
@@ -99,6 +111,7 @@ final class AuthManager: ObservableObject {
             currentUserEmail = storedSession.email
             isAuthenticated = true
             self.session = session
+            scheduleRefresh(for: session)
         } catch let error as SupabaseError {
             throw mapSupabaseError(error)
         } catch {
@@ -121,11 +134,40 @@ final class AuthManager: ObservableObject {
     }
 
     func logout() {
+        refreshTask?.cancel()
+        refreshTask = nil
         isAuthenticated = false
         currentUserEmail = nil
         storedSession = nil
         userDefaults.removeObject(forKey: storedSessionKey)
         session = nil
+    }
+
+    func getValidSession() async throws -> SupabaseAuthSession {
+        try await refreshSessionIfNeeded()
+        if let session {
+            return session
+        }
+
+        if let storedSession {
+            let restoredSession = SupabaseAuthSession(
+                accessToken: storedSession.accessToken,
+                refreshToken: storedSession.refreshToken,
+                userID: storedSession.userID,
+                email: storedSession.email,
+                expiresAt: storedSession.accessTokenExpiresAt
+            )
+            self.session = restoredSession
+            scheduleRefresh(for: restoredSession)
+            return restoredSession
+        }
+
+        throw AuthError.invalidCredentials
+    }
+
+    func refreshSessionIfNeeded() async throws {
+        guard shouldRefreshSession() else { return }
+        try await refreshSession()
     }
 
     func refreshSession() async throws {
@@ -147,6 +189,7 @@ final class AuthManager: ObservableObject {
             self.session = newSession
             self.isAuthenticated = true
             self.currentUserEmail = newSession.email
+            scheduleRefresh(for: newSession)
 
         } catch {
             logout()
@@ -155,33 +198,20 @@ final class AuthManager: ObservableObject {
     }
 
     func performAuthenticatedRequest<T>(request: @escaping (String) async throws -> T) async throws -> T {
-        // 1. Erster Versuch mit dem aktuellen Access Token
-        if let token = accessToken {
-            do {
-                return try await request(token)
-            } catch let error as SupabaseError {
-                // Prüfen, ob der Fehler ein "Token abgelaufen" (401) ist
-                if case let .requestFailed(statusCode, _) = error, statusCode == 401 {
-                    // Token ist abgelaufen -> weiter zu Schritt 2
-                } else {
-                    // Anderer Fehler -> sofort weiterleiten
-                    throw error
-                }
-            } catch {
-                throw error
+        let session = try await getValidSession()
+
+        do {
+            return try await request(session.accessToken)
+        } catch let error as SupabaseError {
+            if case let .requestFailed(statusCode, _) = error, statusCode == 401 {
+                try await refreshSession()
+                let refreshedSession = try await getValidSession()
+                return try await request(refreshedSession.accessToken)
             }
+            throw error
+        } catch {
+            throw error
         }
-
-        // 2. Token erneuern
-        try await refreshSession()
-
-        // 3. Zweiter Versuch mit dem neuen Access Token
-        guard let newToken = accessToken else {
-            logout()
-            throw AuthError.invalidCredentials
-        }
-
-        return try await request(newToken)
     }
 
     func loginAsDemoUser() {
@@ -233,6 +263,45 @@ final class AuthManager: ObservableObject {
 
     var userID: UUID? {
         session?.userID ?? storedSession?.userID
+    }
+
+    private func shouldRefreshSession(now: Date = Date()) -> Bool {
+        guard let expiration = session?.expiresAt ?? storedSession?.accessTokenExpiresAt else {
+            return false
+        }
+
+        return expiration.timeIntervalSince(now) <= tokenRefreshLeeway
+    }
+
+    private func scheduleRefresh(for session: SupabaseAuthSession) {
+        refreshTask?.cancel()
+
+        guard let expiresAt = session.expiresAt else {
+            refreshTask = nil
+            return
+        }
+
+        let refreshTime = expiresAt.addingTimeInterval(-tokenRefreshLeeway)
+        let delay = max(refreshTime.timeIntervalSinceNow, 0)
+
+        refreshTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            if delay > 0 {
+                let nanoseconds = UInt64(delay * 1_000_000_000)
+                try? await Task.sleep(nanoseconds: nanoseconds)
+            }
+
+            guard !Task.isCancelled else { return }
+
+            do {
+                try await self.refreshSession()
+            } catch {
+                #if DEBUG
+                print("Failed to auto-refresh session: \(error)")
+                #endif
+            }
+        }
     }
 
     private func mapSupabaseError(_ error: SupabaseError) -> AuthError {
