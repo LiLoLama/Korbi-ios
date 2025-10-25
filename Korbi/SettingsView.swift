@@ -140,13 +140,6 @@ struct SettingsView: View {
                     }
                 }
 
-                Section(header: Text("Mehr Korbi")) {
-                    NavigationLink("Design Styleguide") {
-                        StyleGuideView()
-                    }
-                    .font(KorbiTheme.Typography.body(weight: .medium))
-                    .foregroundStyle(settings.palette.primary)
-                }
             }
             .scrollContentBackground(.hidden)
             .background(KorbiBackground())

@@ -214,19 +214,6 @@ final class AuthManager: ObservableObject {
         }
     }
 
-    func loginAsDemoUser() {
-        Task { @MainActor in
-            try? await login(email: demoCredentials.email, password: demoCredentials.password)
-        }
-    }
-
-    var demoCredentials: (email: String, password: String) {
-        (normalize(demoEmail), demoPassword)
-    }
-
-    private let demoEmail = "test@korbi.com"
-    private let demoPassword = "test"
-
     private func persistSession() {
         guard let storedSession else {
             userDefaults.removeObject(forKey: storedSessionKey)
