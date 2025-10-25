@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct SettingsView: View {
     @EnvironmentObject private var settings: KorbiSettings
@@ -16,7 +17,6 @@ struct SettingsView: View {
     @State private var renameHouseholdName = ""
     @State private var householdPendingDeletion: Household? = nil
     @State private var isConfirmingHouseholdDeletion = false
-    @State private var inviteEmail = ""
 
     var body: some View {
         NavigationStack {
@@ -97,7 +97,6 @@ struct SettingsView: View {
                     .disabled(settings.households.isEmpty)
 
                     Button {
-                        inviteEmail = ""
                         isPresentingShareSheet = true
                     } label: {
                         Label("Haushalt teilen", systemImage: "person.2.circle")
@@ -181,9 +180,8 @@ struct SettingsView: View {
         .sheet(isPresented: $isPresentingShareSheet) {
             HouseholdShareSheet(
                 householdName: settings.currentHousehold?.name,
-                inviteEmail: $inviteEmail,
-                onCancel: { isPresentingShareSheet = false },
-                onSend: { isPresentingShareSheet = false }
+                householdID: settings.currentHousehold?.id,
+                onDismiss: { isPresentingShareSheet = false }
             )
             .environmentObject(settings)
         }
@@ -320,55 +318,200 @@ private struct RenameHouseholdSheet: View {
 private struct HouseholdShareSheet: View {
     @EnvironmentObject private var settings: KorbiSettings
     let householdName: String?
-    @Binding var inviteEmail: String
-    let onCancel: () -> Void
-    let onSend: () -> Void
+    let householdID: UUID?
+    let onDismiss: () -> Void
 
-    private var isSendDisabled: Bool {
-        inviteEmail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section(header: Text("Haushalt teilen")) {
-                    Text("Lade weitere Personen zu \(displayHouseholdName) ein, damit ihr gemeinsam planen könnt.")
-                        .font(KorbiTheme.Typography.body())
-                        .foregroundStyle(settings.palette.textSecondary)
-                        .padding(.vertical, 4)
-
-                    TextField("E-Mail-Adresse", text: $inviteEmail)
-                        .keyboardType(.emailAddress)
-                        .textInputAutocapitalization(.never)
-                }
-
-                Section(header: Text("Nachricht")) {
-                    Text("Hallo! Ich möchte dich zu unserem Korbi-Haushalt einladen. So können wir gemeinsam Einkaufslisten und Routinen verwalten.")
-                        .font(KorbiTheme.Typography.caption())
-                        .foregroundStyle(settings.palette.textSecondary)
-                        .padding(.vertical, 2)
-                }
-            }
-            .scrollContentBackground(.hidden)
-            .background(KorbiBackground())
-            .navigationTitle("Einladung senden")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Abbrechen", action: onCancel)
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Senden", action: onSend)
-                        .disabled(isSendDisabled)
-                }
-            }
-        }
-    }
+    @State private var invite: HouseholdInvite? = nil
+    @State private var isLoading = false
+    @State private var errorMessage: String? = nil
+    @State private var hintMessage: String? = nil
 
     private var displayHouseholdName: String {
         if let householdName, !householdName.isEmpty {
             return householdName
         }
         return "deinem Haushalt"
+    }
+
+    private var isActionDisabled: Bool {
+        isLoading || invite == nil
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section(header: Text("Einladungslink")) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Teile den Link, damit weitere Personen \(displayHouseholdName) beitreten können.")
+                            .font(KorbiTheme.Typography.body())
+                            .foregroundStyle(settings.palette.textSecondary)
+
+                        if let invite {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text(invite.linkURL.absoluteString)
+                                    .font(KorbiTheme.Typography.caption())
+                                    .textSelection(.enabled)
+
+                                if let expiresAt = invite.expiresAt {
+                                    Text("Gültig bis \(expiresAt.formatted(date: .abbreviated, time: .shortened))")
+                                        .font(KorbiTheme.Typography.caption())
+                                        .foregroundStyle(settings.palette.textSecondary)
+                                }
+
+                                actionButtons(for: invite)
+                            }
+                        }
+
+                        if isLoading {
+                            ProgressView("Wird geladen…")
+                                .progressViewStyle(.circular)
+                        }
+
+                        if let errorMessage {
+                            Text(errorMessage)
+                                .font(KorbiTheme.Typography.caption(weight: .semibold))
+                                .foregroundStyle(.red)
+                        }
+
+                        if let hintMessage {
+                            Text(hintMessage)
+                                .font(KorbiTheme.Typography.caption(weight: .semibold))
+                                .foregroundStyle(settings.palette.primary)
+                                .transition(.opacity)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                Section {
+                    Button {
+                        Task { await regenerateInvite() }
+                    } label: {
+                        Label("Neuen Link generieren", systemImage: "arrow.clockwise.circle")
+                    }
+                    .disabled(isLoading)
+
+                    Button(role: .destructive) {
+                        Task { await revokeInvite() }
+                    } label: {
+                        Label("Link widerrufen", systemImage: "xmark.circle")
+                    }
+                    .disabled(isActionDisabled)
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .background(KorbiBackground())
+            .navigationTitle("Haushalt teilen")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Fertig", action: onDismiss)
+                }
+            }
+            .task {
+                await loadInviteIfNeeded()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func actionButtons(for invite: HouseholdInvite) -> some View {
+        VStack(spacing: 8) {
+            Button {
+                UIPasteboard.general.string = invite.linkURL.absoluteString
+                showHint("Link kopiert")
+            } label: {
+                Label("In Zwischenablage kopieren", systemImage: "doc.on.doc")
+                    .font(KorbiTheme.Typography.body(weight: .semibold))
+            }
+
+            ShareLink(item: invite.linkURL) {
+                Label("Teilen", systemImage: "square.and.arrow.up")
+                    .font(KorbiTheme.Typography.body(weight: .semibold))
+            }
+        }
+    }
+
+    private func loadInviteIfNeeded() async {
+        guard let householdID else {
+            errorMessage = InviteError.missingHousehold.errorDescription
+            return
+        }
+
+        if let existing = settings.currentInvite(for: householdID) {
+            invite = existing
+            return
+        }
+
+        await regenerateInvite()
+    }
+
+    private func regenerateInvite() async {
+        guard let householdID else {
+            errorMessage = InviteError.missingHousehold.errorDescription
+            return
+        }
+
+        await withLoading {
+            do {
+                let newInvite = try await settings.createInvite(for: householdID)
+                invite = newInvite
+                errorMessage = nil
+                showHint("Neuer Link erstellt")
+            } catch {
+                invite = nil
+                errorMessage = mapInviteError(error)
+            }
+        }
+    }
+
+    private func revokeInvite() async {
+        guard let householdID else {
+            errorMessage = InviteError.missingHousehold.errorDescription
+            return
+        }
+
+        await withLoading {
+            do {
+                try await settings.revokeInvite(for: householdID)
+                invite = nil
+                showHint("Einladung widerrufen")
+            } catch {
+                errorMessage = mapInviteError(error)
+            }
+        }
+    }
+
+    private func withLoading(operation: @escaping () async -> Void) async {
+        await MainActor.run {
+            isLoading = true
+            errorMessage = nil
+        }
+        await operation()
+        await MainActor.run {
+            isLoading = false
+        }
+    }
+
+    private func mapInviteError(_ error: Error) -> String {
+        if let inviteError = error as? InviteError {
+            return inviteError.localizedDescription
+        }
+        if let supabaseError = error as? SupabaseError {
+            return supabaseError.localizedDescription ?? "Unbekannter Fehler"
+        }
+        return error.localizedDescription
+    }
+
+    private func showHint(_ message: String) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            hintMessage = message
+        }
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            withAnimation(.easeInOut(duration: 0.2)) {
+                hintMessage = nil
+            }
+        }
     }
 }
 
