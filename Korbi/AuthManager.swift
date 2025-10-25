@@ -128,6 +128,62 @@ final class AuthManager: ObservableObject {
         session = nil
     }
 
+    func refreshSession() async throws {
+        guard let storedSession, let currentRefreshToken = storedSession.refreshToken else {
+            logout()
+            throw AuthError.invalidCredentials
+        }
+
+        do {
+            let newSession = try await supabaseClient.refreshToken(refreshToken: currentRefreshToken)
+
+            let updatedStoredSession = StoredSession(
+                session: newSession,
+                primaryHouseholdID: storedSession.primaryHouseholdID,
+                fallbackEmail: storedSession.email
+            )
+
+            self.storedSession = updatedStoredSession
+            self.session = newSession
+            self.isAuthenticated = true
+            self.currentUserEmail = newSession.email
+
+        } catch {
+            logout()
+            throw error
+        }
+    }
+
+    func performAuthenticatedRequest<T>(request: @escaping (String) async throws -> T) async throws -> T {
+        // 1. Erster Versuch mit dem aktuellen Access Token
+        if let token = accessToken {
+            do {
+                return try await request(token)
+            } catch let error as SupabaseError {
+                // Prüfen, ob der Fehler ein "Token abgelaufen" (401) ist
+                if case let .requestFailed(statusCode, _) = error, statusCode == 401 {
+                    // Token ist abgelaufen -> weiter zu Schritt 2
+                } else {
+                    // Anderer Fehler -> sofort weiterleiten
+                    throw error
+                }
+            } catch {
+                throw error
+            }
+        }
+
+        // 2. Token erneuern
+        try await refreshSession()
+
+        // 3. Zweiter Versuch mit dem neuen Access Token
+        guard let newToken = accessToken else {
+            logout()
+            throw AuthError.invalidCredentials
+        }
+
+        return try await request(newToken)
+    }
+
     func loginAsDemoUser() {
         Task { @MainActor in
             try? await login(email: demoCredentials.email, password: demoCredentials.password)
