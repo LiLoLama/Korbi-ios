@@ -74,6 +74,7 @@ final class KorbiSettings: ObservableObject {
     let voiceRecordingWebhookURL: URL
 
     private let supabaseClient: SupabaseService
+    private weak var authManager: AuthManager?
     private var activeSession: SupabaseAuthSession?
 
     init(
@@ -97,6 +98,10 @@ final class KorbiSettings: ObservableObject {
         self.profileName = ""
 
         ensureValidSelection()
+    }
+
+    func configure(authManager: AuthManager) {
+        self.authManager = authManager
     }
 
     private static func resolveVoiceRecordingWebhook(from bundle: Bundle) -> URL {
@@ -134,9 +139,11 @@ final class KorbiSettings: ObservableObject {
             }
         }
 
-        guard didRemoveItem, let session = activeSession else { return }
+        guard didRemoveItem, let authManager else { return }
 
         do {
+            let session = try await authManager.getValidSession()
+            activeSession = session
             try await supabaseClient.deleteItem(id: item.id, accessToken: session.accessToken)
         } catch {
             #if DEBUG
@@ -146,8 +153,16 @@ final class KorbiSettings: ObservableObject {
     }
 
     func refreshActiveSession() async {
-        guard let session = activeSession else { return }
-        await refreshData(with: session)
+        guard let authManager else { return }
+
+        do {
+            let session = try await authManager.getValidSession()
+            await refreshData(with: session)
+        } catch {
+            #if DEBUG
+            print("Failed to refresh active session: \(error)")
+            #endif
+        }
     }
 
     func refreshData(with session: SupabaseAuthSession) async {
@@ -175,16 +190,17 @@ final class KorbiSettings: ObservableObject {
     func createHousehold(named name: String) async {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else { return }
-
-        guard let session = activeSession else {
+        guard let authManager else {
             #if DEBUG
-            print("Cannot create household without an active session")
+            print("Cannot create household without an auth manager")
             #endif
             return
         }
 
         let newID = UUID()
         do {
+            let session = try await authManager.getValidSession()
+            activeSession = session
             try await supabaseClient.createHousehold(id: newID, name: trimmedName, accessToken: session.accessToken)
             await refreshData(with: session)
             selectedHouseholdID = newID
@@ -196,14 +212,16 @@ final class KorbiSettings: ObservableObject {
     }
 
     func deleteHousehold(_ household: Household) async {
-        guard let session = activeSession else {
+        guard let authManager else {
             #if DEBUG
-            print("Cannot delete household without an active session")
+            print("Cannot delete household without an auth manager")
             #endif
             return
         }
 
         do {
+            let session = try await authManager.getValidSession()
+            activeSession = session
             try await supabaseClient.deleteHousehold(id: household.id, accessToken: session.accessToken)
             await refreshData(with: session)
         } catch {
@@ -216,22 +234,33 @@ final class KorbiSettings: ObservableObject {
     func selectHousehold(_ household: Household) {
         guard households.contains(household) else { return }
         selectedHouseholdID = household.id
-        guard let session = activeSession else { return }
-        Task {
-            await updateMembersAndProfile(for: household.id, session: session)
-            await updateItems(for: household.id, session: session)
+        guard let authManager else { return }
+
+        Task { @MainActor in
+            do {
+                let session = try await authManager.getValidSession()
+                activeSession = session
+                await updateMembersAndProfile(for: household.id, session: session)
+                await updateItems(for: household.id, session: session)
+            } catch {
+                #if DEBUG
+                print("Failed to load data for selected household: \(error)")
+                #endif
+            }
         }
     }
 
     func updateProfileName(to name: String) {
-        guard let session = activeSession,
-              let householdID = selectedHouseholdID else { return }
+        guard let householdID = selectedHouseholdID else { return }
 
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
         Task {
             do {
+                guard let authManager else { return }
+                let session = try await authManager.getValidSession()
+                activeSession = session
                 try await supabaseClient.updateHouseholdMemberName(
                     userID: session.userID,
                     householdID: householdID,
@@ -270,14 +299,16 @@ final class KorbiSettings: ObservableObject {
     }
 
     func updateCurrentHouseholdName(to name: String) {
-        guard let session = activeSession,
-              let householdID = selectedHouseholdID else { return }
+        guard let householdID = selectedHouseholdID else { return }
 
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
         Task {
             do {
+                guard let authManager else { return }
+                let session = try await authManager.getValidSession()
+                activeSession = session
                 try await supabaseClient.updateHouseholdName(
                     id: householdID,
                     name: trimmed,

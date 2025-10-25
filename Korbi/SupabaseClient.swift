@@ -23,6 +23,7 @@ struct SupabaseAuthSession: Codable, Equatable {
     let refreshToken: String?
     let userID: UUID
     let email: String
+    let expiresAt: Date?
 }
 
 protocol SupabaseService {
@@ -359,7 +360,8 @@ private extension SupabaseClient {
             accessToken: accessToken,
             refreshToken: authResponse.refreshToken,
             userID: user.id,
-            email: user.email ?? ""
+            email: user.email ?? "",
+            expiresAt: expirationDate(from: authResponse.expiresIn)
         )
     }
 
@@ -373,8 +375,14 @@ private extension SupabaseClient {
             accessToken: accessToken,
             refreshToken: payload.refreshToken,
             userID: user.id,
-            email: user.email ?? ""
+            email: user.email ?? "",
+            expiresAt: expirationDate(from: payload.expiresIn)
         )
+    }
+
+    func expirationDate(from expiresIn: Int?) -> Date? {
+        guard let expiresIn else { return nil }
+        return Date().addingTimeInterval(TimeInterval(expiresIn))
     }
 
     func performDecodingRequest<Response: Decodable>(_ request: URLRequest) async throws -> Response {
