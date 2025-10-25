@@ -39,6 +39,15 @@ protocol SupabaseService {
     func updateHouseholdMemberName(userID: UUID, householdID: UUID, name: String, accessToken: String) async throws
     func fetchItems(accessToken: String, householdID: UUID?) async throws -> [SupabaseItem]
     func deleteItem(id: UUID, accessToken: String) async throws
+    func createInvite(
+        householdID: UUID,
+        email: String?,
+        role: String,
+        ttlHours: Int,
+        accessToken: String
+    ) async throws -> SupabaseInvite
+    func revokeInvite(inviteID: UUID, accessToken: String) async throws
+    func acceptInvite(token: String, accessToken: String) async throws -> SupabaseInviteAcceptance
 }
 
 enum SupabaseError: LocalizedError {
@@ -233,6 +242,49 @@ final class SupabaseClient: SupabaseService {
         )
         try await performEmptyRequest(request)
     }
+
+    func createInvite(
+        householdID: UUID,
+        email: String?,
+        role: String,
+        ttlHours: Int,
+        accessToken: String
+    ) async throws -> SupabaseInvite {
+        var request = try dataRequest(
+            path: "rest/v1/rpc/create_invite",
+            method: "POST",
+            accessToken: accessToken
+        )
+        request.httpBody = try encoder.encode(
+            InviteCreationPayload(
+                householdID: householdID,
+                email: email,
+                role: role,
+                ttlHours: ttlHours
+            )
+        )
+        return try await performDecodingRequest(request)
+    }
+
+    func revokeInvite(inviteID: UUID, accessToken: String) async throws {
+        var request = try dataRequest(
+            path: "rest/v1/rpc/revoke_invite",
+            method: "POST",
+            accessToken: accessToken
+        )
+        request.httpBody = try encoder.encode(InviteRevocationPayload(inviteID: inviteID))
+        try await performEmptyRequest(request)
+    }
+
+    func acceptInvite(token: String, accessToken: String) async throws -> SupabaseInviteAcceptance {
+        var request = try dataRequest(
+            path: "rest/v1/rpc/accept_invite",
+            method: "POST",
+            accessToken: accessToken
+        )
+        request.httpBody = try encoder.encode(InviteAcceptancePayload(token: token))
+        return try await performDecodingRequest(request)
+    }
 }
 
 private extension SupabaseClient {
@@ -246,6 +298,36 @@ private extension SupabaseClient {
 
         enum CodingKeys: String, CodingKey {
             case refreshToken = "refresh_token"
+        }
+    }
+
+    struct InviteCreationPayload: Encodable {
+        let householdID: UUID
+        let email: String?
+        let role: String
+        let ttlHours: Int
+
+        enum CodingKeys: String, CodingKey {
+            case householdID = "p_household_id"
+            case email = "p_email"
+            case role = "p_role"
+            case ttlHours = "p_ttl_hours"
+        }
+    }
+
+    struct InviteRevocationPayload: Encodable {
+        let inviteID: UUID
+
+        enum CodingKeys: String, CodingKey {
+            case inviteID = "p_invite_id"
+        }
+    }
+
+    struct InviteAcceptancePayload: Encodable {
+        let token: String
+
+        enum CodingKeys: String, CodingKey {
+            case token = "p_token"
         }
     }
 
@@ -468,5 +550,27 @@ struct SupabaseItem: Codable, Identifiable, Equatable {
         case description
         case quantity
         case category
+    }
+}
+
+struct SupabaseInvite: Codable, Identifiable, Equatable {
+    let id: UUID
+    let token: String
+    let expiresAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case token
+        case expiresAt = "expires_at"
+    }
+}
+
+struct SupabaseInviteAcceptance: Codable, Equatable {
+    let householdID: UUID
+    let householdName: String?
+
+    enum CodingKeys: String, CodingKey {
+        case householdID = "household_id"
+        case householdName = "household_name"
     }
 }
