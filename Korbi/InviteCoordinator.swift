@@ -26,6 +26,7 @@ final class InviteCoordinator: ObservableObject {
     }
 
     @Published private(set) var status: Status = .idle
+    @Published private(set) var pendingInviteToken: String?
 
     private weak var settings: KorbiSettings?
     private weak var authManager: AuthManager?
@@ -37,33 +38,38 @@ final class InviteCoordinator: ObservableObject {
 
     func handleIncomingURL(_ url: URL) {
         guard let token = Self.extractToken(from: url) else { return }
+        pendingInviteToken = token
         status = .pending(token: token)
         attemptProcessingIfPossible()
     }
 
     func attemptProcessingIfPossible() {
-        guard let token = status.token else { return }
+        guard let token = pendingInviteToken ?? status.token else { return }
         guard authManager?.isAuthenticated == true else { return }
         acceptInvite(with: token)
     }
 
     func retry() {
-        guard let token = status.token else { return }
+        guard let token = status.token ?? pendingInviteToken else { return }
+        pendingInviteToken = token
         acceptInvite(with: token)
     }
 
     func clear() {
         status = .idle
+        pendingInviteToken = nil
     }
 
     private func acceptInvite(with token: String) {
         guard let settings else { return }
+        pendingInviteToken = token
         status = .processing(token: token)
 
         Task {
             do {
                 let household = try await settings.acceptInvite(token: token)
                 await MainActor.run {
+                    pendingInviteToken = nil
                     status = .success(householdName: household?.name)
                 }
             } catch {
@@ -77,16 +83,25 @@ final class InviteCoordinator: ObservableObject {
 
     private static func extractToken(from url: URL) -> String? {
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return nil }
-        if let host = components.host,
-           host.lowercased().contains("korbiinvite"),
-           let tokenQuery = components.queryItems?.first(where: { $0.name == "token" })?.value {
-            return tokenQuery
+        guard let token = components.queryItems?.first(where: { $0.name.lowercased() == "token" })?.value else {
+            return nil
         }
 
-        if components.path.lowercased().contains("korbiinvite") ||
-            url.absoluteString.lowercased().contains("korbiinvite"),
-           let tokenQuery = components.queryItems?.first(where: { $0.name == "token" })?.value {
-            return tokenQuery
+        let scheme = components.scheme?.lowercased()
+        let host = components.host?.lowercased()
+        let path = components.path.lowercased()
+        let absolute = url.absoluteString.lowercased()
+
+        if scheme == "korbi", host == "invite" {
+            return token
+        }
+
+        if let host, host.contains("korbiinvite") {
+            return token
+        }
+
+        if path.contains("korbiinvite") || absolute.contains("korbiinvite") {
+            return token
         }
 
         return nil
