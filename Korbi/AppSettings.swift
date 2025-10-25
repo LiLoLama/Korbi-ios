@@ -81,7 +81,8 @@ final class KorbiSettings: ObservableObject {
         selectedHouseholdID: UUID? = nil,
         useWarmLightMode: Bool = false,
         recentPurchases: [String] = [],
-        voiceRecordingWebhookURL: URL = URL(string: "https://korbi-webhook.example/api/voice")!,
+        voiceRecordingWebhookURL: URL? = nil,
+        bundle: Bundle = .main,
         supabaseClient: SupabaseService = SupabaseClient()
     ) {
         self.households = households
@@ -89,13 +90,30 @@ final class KorbiSettings: ObservableObject {
         self.useWarmLightMode = useWarmLightMode
         self.recentPurchases = recentPurchases
         self.palette = useWarmLightMode ? .warmLight : .serene
-        self.voiceRecordingWebhookURL = voiceRecordingWebhookURL
         self.supabaseClient = supabaseClient
         self.householdMembers = [:]
         self.householdItems = [:]
         self.profileName = ""
 
+        self.voiceRecordingWebhookURL = KorbiSettings.resolveWebhookURL(
+            providedURL: voiceRecordingWebhookURL,
+            bundle: bundle
+        )
+
         ensureValidSelection()
+    }
+
+    private static func resolveWebhookURL(providedURL: URL?, bundle: Bundle) -> URL {
+        if let providedURL {
+            return providedURL
+        }
+
+        if let stringValue = bundle.object(forInfoDictionaryKey: "VOICE_RECORDING_WEBHOOK_URL") as? String,
+           let url = URL(string: stringValue) {
+            return url
+        }
+
+        return URL(string: "https://korbi-webhook.example/api/voice")!
     }
 
     func recordPurchase(_ item: String) {

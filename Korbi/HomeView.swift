@@ -4,11 +4,19 @@ struct HomeView: View {
     @EnvironmentObject private var settings: KorbiSettings
     @State private var showRecentPurchases = false
     @State private var purchasedItems: Set<UUID> = []
+    @State private var itemPendingConfirmationID: UUID?
+    @State private var itemDeletingID: UUID?
+    @State private var suppressBackgroundTapReset = false
 
     var body: some View {
         NavigationStack {
             ZStack {
                 KorbiBackground()
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            itemPendingConfirmationID = nil
+                        }
+                    }
 
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 28) {
@@ -23,6 +31,17 @@ struct HomeView: View {
                 .refreshable {
                     await settings.refreshActiveSession()
                 }
+                .simultaneousGesture(
+                    TapGesture().onEnded {
+                        if suppressBackgroundTapReset {
+                            suppressBackgroundTapReset = false
+                        } else {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                itemPendingConfirmationID = nil
+                            }
+                        }
+                    }
+                )
                 .safeAreaInset(edge: .bottom) {
                     FloatingMicButton()
                         .padding(.top, 16)
@@ -36,6 +55,15 @@ struct HomeView: View {
             .navigationBarTitleDisplayMode(.large)
         }
         .accentColor(settings.palette.primary)
+        .onChange(of: settings.currentHouseholdItems) { newItems in
+            let validIDs = Set(newItems.map { $0.id })
+            if let pendingID = itemPendingConfirmationID, !validIDs.contains(pendingID) {
+                itemPendingConfirmationID = nil
+            }
+            if let deletingID = itemDeletingID, !validIDs.contains(deletingID) {
+                itemDeletingID = nil
+            }
+        }
         .sheet(isPresented: $showRecentPurchases) {
             NavigationStack {
                 List {
@@ -105,6 +133,11 @@ struct HomeView: View {
                             item: item,
                             isPurchased: purchasedItems.contains(item.id)
                         )
+                        .overlay { confirmationOverlay(for: item) }
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            handleItemTap(item)
+                        }
                         .purchaseCelebration(isActive: purchasedItems.contains(item.id))
                         .swipeActions(edge: .leading, allowsFullSwipe: true) {
                             Button {
@@ -143,4 +176,78 @@ struct HomeView: View {
     HomeView()
         .environmentObject(KorbiSettings())
         .preferredColorScheme(.dark)
+}
+
+extension HomeView {
+    @ViewBuilder
+    private func confirmationOverlay(for item: HouseholdItem) -> some View {
+        if itemDeletingID == item.id {
+            overlayView(
+                background: Color.green,
+                foregroundColor: .white,
+                title: "Erledigt",
+                systemImage: "checkmark.circle.fill"
+            )
+        } else if itemPendingConfirmationID == item.id {
+            overlayView(
+                background: Color.green.opacity(0.25),
+                foregroundColor: settings.palette.textPrimary,
+                title: "Erledigt?",
+                systemImage: "hand.tap.fill"
+            )
+        }
+    }
+
+    private func overlayView(background: Color, foregroundColor: Color, title: String, systemImage: String) -> some View {
+        RoundedRectangle(cornerRadius: KorbiTheme.Metrics.compactCornerRadius, style: .continuous)
+            .fill(background)
+            .overlay {
+                HStack(spacing: 12) {
+                    Image(systemName: systemImage)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(foregroundColor)
+                    Text(title)
+                        .font(KorbiTheme.Typography.body(weight: .semibold))
+                        .foregroundStyle(foregroundColor)
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 14)
+            }
+            .transition(.opacity)
+            .allowsHitTesting(false)
+    }
+
+    private func handleItemTap(_ item: HouseholdItem) {
+        suppressBackgroundTapReset = true
+        DispatchQueue.main.async {
+            suppressBackgroundTapReset = false
+        }
+
+        if itemDeletingID != nil {
+            return
+        }
+
+        if itemPendingConfirmationID == item.id {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                itemDeletingID = item.id
+            }
+            itemPendingConfirmationID = nil
+
+            Task {
+                try? await Task.sleep(nanoseconds: 180_000_000)
+                await settings.markItemAsPurchased(item)
+                await MainActor.run {
+                    if itemDeletingID == item.id {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            itemDeletingID = nil
+                        }
+                    }
+                }
+            }
+        } else {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                itemPendingConfirmationID = item.id
+            }
+        }
+    }
 }
