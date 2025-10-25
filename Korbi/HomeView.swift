@@ -44,32 +44,6 @@ struct HomeView: View {
             .navigationBarTitleDisplayMode(.large)
         }
         .accentColor(settings.palette.primary)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button {
-                    guard !isRefreshing else { return }
-                    isRefreshing = true
-                    Task {
-                        await settings.refreshActiveSession()
-                        await MainActor.run {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                isRefreshing = false
-                            }
-                        }
-                    }
-                } label: {
-                    if isRefreshing {
-                        ProgressView()
-                            .tint(settings.palette.primary)
-                    } else {
-                        Image(systemName: "arrow.clockwise")
-                            .foregroundStyle(settings.palette.primary)
-                    }
-                }
-                .accessibilityLabel("Aktualisieren")
-                .disabled(isRefreshing)
-            }
-        }
         .sheet(isPresented: $showRecentPurchases) {
             NavigationStack {
                 List {
@@ -117,6 +91,29 @@ struct HomeView: View {
                 Text("Heute zu besorgen")
                     .font(KorbiTheme.Typography.title())
                     .foregroundStyle(settings.palette.textPrimary)
+                Button {
+                    guard !isRefreshing else { return }
+                    isRefreshing = true
+                    Task {
+                        await settings.refreshActiveSession()
+                        await MainActor.run {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                isRefreshing = false
+                            }
+                        }
+                    }
+                } label: {
+                    if isRefreshing {
+                        ProgressView()
+                            .tint(settings.palette.primary)
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                            .foregroundStyle(settings.palette.primary)
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Aktualisieren")
+                .disabled(isRefreshing)
             }
             .contentShape(Rectangle())
             .onTapGesture(perform: cancelPendingCompletion)
