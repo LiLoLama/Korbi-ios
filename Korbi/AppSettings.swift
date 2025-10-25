@@ -75,6 +75,7 @@ final class KorbiSettings: ObservableObject {
 
     private let supabaseClient: SupabaseService
     private var activeSession: SupabaseAuthSession?
+    private var refreshTask: Task<Void, Never>?
 
     init(
         households: [Household] = [],
@@ -151,11 +152,41 @@ final class KorbiSettings: ObservableObject {
 
     func refreshActiveSession() async {
         guard let session = activeSession else { return }
-        await refreshData(with: session)
+        await enqueueRefresh(with: session)
     }
 
     func refreshData(with session: SupabaseAuthSession) async {
         activeSession = session
+        refreshTask?.cancel()
+        refreshTask = nil
+        await enqueueRefresh(with: session)
+    }
+
+    private func enqueueRefresh(with session: SupabaseAuthSession) async {
+        if let task = refreshTask {
+            await task.value
+            return
+        }
+
+        let task = Task.detached(priority: .userInitiated) { [weak self] in
+            guard let self else { return }
+            await self.performRefresh(with: session)
+        }
+        refreshTask = task
+
+        await withTaskCancellationHandler {
+            await task.value
+        } onCancel: {
+            // Allow the underlying refresh task to finish even if callers cancel.
+        }
+
+        if refreshTask === task {
+            refreshTask = nil
+        }
+    }
+
+    @MainActor
+    private func performRefresh(with session: SupabaseAuthSession) async {
         do {
             let remoteHouseholds = try await supabaseClient.fetchHouseholds(accessToken: session.accessToken)
             let mappedHouseholds = remoteHouseholds.map { Household(id: $0.id, name: $0.name) }
