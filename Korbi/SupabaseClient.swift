@@ -39,6 +39,15 @@ protocol SupabaseService {
     func updateHouseholdMemberName(userID: UUID, householdID: UUID, name: String, accessToken: String) async throws
     func fetchItems(accessToken: String, householdID: UUID?) async throws -> [SupabaseItem]
     func deleteItem(id: UUID, accessToken: String) async throws
+    func createInvite(
+        householdID: UUID,
+        email: String?,
+        role: InviteRole,
+        ttlHours: Int,
+        accessToken: String
+    ) async throws -> SupabaseInvite
+    func revokeInvite(inviteID: UUID, accessToken: String) async throws
+    func acceptInvite(token: String, accessToken: String) async throws -> SupabaseInviteAcceptance
 }
 
 enum SupabaseError: LocalizedError {
@@ -68,10 +77,10 @@ final class SupabaseClient: SupabaseService {
         self.configuration = configuration
         self.urlSession = urlSession
         let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
+        encoder.dateEncodingStrategy = SupabaseClient.dateEncodingStrategy
         self.encoder = encoder
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = SupabaseClient.dateDecodingStrategy
         self.decoder = decoder
     }
 
@@ -233,6 +242,93 @@ final class SupabaseClient: SupabaseService {
         )
         try await performEmptyRequest(request)
     }
+
+    func createInvite(
+        householdID: UUID,
+        email: String?,
+        role: InviteRole,
+        ttlHours: Int,
+        accessToken: String
+    ) async throws -> SupabaseInvite {
+        var request = try dataRequest(
+            path: "rest/v1/rpc/create_invite",
+            method: "POST",
+            accessToken: accessToken
+        )
+        request.httpBody = try encoder.encode(
+            InviteCreationPayload(
+                householdID: householdID,
+                email: email,
+                role: role,
+                ttlHours: ttlHours
+            )
+        )
+        return try await performDecodingRequest(request)
+    }
+
+    func revokeInvite(inviteID: UUID, accessToken: String) async throws {
+        var request = try dataRequest(
+            path: "rest/v1/rpc/revoke_invite",
+            method: "POST",
+            accessToken: accessToken
+        )
+        request.httpBody = try encoder.encode(InviteRevocationPayload(inviteID: inviteID))
+        try await performEmptyRequest(request)
+    }
+
+    func acceptInvite(token: String, accessToken: String) async throws -> SupabaseInviteAcceptance {
+        var request = try dataRequest(
+            path: "rest/v1/rpc/accept_invite",
+            method: "POST",
+            accessToken: accessToken
+        )
+        request.httpBody = try encoder.encode(InviteAcceptancePayload(token: token))
+        return try await performDecodingRequest(request)
+    }
+}
+
+private extension SupabaseClient {
+    static let fractionalSecondsFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        return formatter
+    }()
+
+    static let internetDateTimeFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        return formatter
+    }()
+
+    static var dateDecodingStrategy: JSONDecoder.DateDecodingStrategy {
+        .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let string = try container.decode(String.self)
+
+            if let date = fractionalSecondsFormatter.date(from: string) {
+                return date
+            }
+
+            if let date = internetDateTimeFormatter.date(from: string) {
+                return date
+            }
+
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Date string does not match expected ISO8601 formats"
+            )
+        }
+    }
+
+    static var dateEncodingStrategy: JSONEncoder.DateEncodingStrategy {
+        .custom { date, encoder in
+            var container = encoder.singleValueContainer()
+            let string = fractionalSecondsFormatter.string(from: date)
+            try container.encode(string)
+        }
+    }
 }
 
 private extension SupabaseClient {
@@ -246,6 +342,48 @@ private extension SupabaseClient {
 
         enum CodingKeys: String, CodingKey {
             case refreshToken = "refresh_token"
+        }
+    }
+
+    struct InviteCreationPayload: Encodable {
+        let householdID: UUID
+        let email: String?
+        let role: InviteRole
+        let ttlHours: Int
+
+        enum CodingKeys: String, CodingKey {
+            case householdID = "p_household_id"
+            case email = "p_email"
+            case role = "p_role"
+            case ttlHours = "p_ttl_hours"
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(householdID, forKey: .householdID)
+            if let email {
+                try container.encode(email, forKey: .email)
+            } else {
+                try container.encodeNil(forKey: .email)
+            }
+            try container.encode(role, forKey: .role)
+            try container.encode(ttlHours, forKey: .ttlHours)
+        }
+    }
+
+    struct InviteRevocationPayload: Encodable {
+        let inviteID: UUID
+
+        enum CodingKeys: String, CodingKey {
+            case inviteID = "p_invite_id"
+        }
+    }
+
+    struct InviteAcceptancePayload: Encodable {
+        let token: String
+
+        enum CodingKeys: String, CodingKey {
+            case token = "p_token"
         }
     }
 
@@ -468,5 +606,27 @@ struct SupabaseItem: Codable, Identifiable, Equatable {
         case description
         case quantity
         case category
+    }
+}
+
+struct SupabaseInvite: Codable, Identifiable, Equatable {
+    let id: UUID
+    let token: String
+    let expiresAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case token
+        case expiresAt = "expires_at"
+    }
+}
+
+struct SupabaseInviteAcceptance: Codable, Equatable {
+    let householdID: UUID
+    let householdName: String?
+
+    enum CodingKeys: String, CodingKey {
+        case householdID = "household_id"
+        case householdName = "household_name"
     }
 }

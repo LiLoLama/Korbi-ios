@@ -26,6 +26,7 @@ struct KorbiApp: App {
     private let supabaseClient: SupabaseClient
     @StateObject private var settings: KorbiSettings
     @StateObject private var authManager: AuthManager
+    @StateObject private var inviteCoordinator: InviteCoordinator
 
     init() {
         let client = SupabaseClient()
@@ -35,6 +36,7 @@ struct KorbiApp: App {
         settings.configure(authManager: authManager)
         _settings = StateObject(wrappedValue: settings)
         _authManager = StateObject(wrappedValue: authManager)
+        _inviteCoordinator = StateObject(wrappedValue: InviteCoordinator(settings: settings, authManager: authManager))
     }
 
     var body: some Scene {
@@ -42,7 +44,11 @@ struct KorbiApp: App {
             ContentView()
                 .environmentObject(settings)
                 .environmentObject(authManager)
+                .environmentObject(inviteCoordinator)
                 .preferredColorScheme(settings.useWarmLightMode ? .light : nil)
+                .onOpenURL { url in
+                    inviteCoordinator.handleIncomingURL(url)
+                }
         }
         .modelContainer(sharedModelContainer)
     }

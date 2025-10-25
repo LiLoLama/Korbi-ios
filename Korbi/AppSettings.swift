@@ -56,6 +56,30 @@ struct HouseholdItem: Identifiable, Equatable {
     let category: String
 }
 
+struct HouseholdInvite: Identifiable, Equatable {
+    let id: UUID
+    let token: String
+    let expiresAt: Date?
+
+    var linkURL: URL {
+        URL(string: "https://liamschmid.com/korbiinvite?token=\(token)")!
+    }
+}
+
+enum InviteError: LocalizedError {
+    case missingHousehold
+    case notAuthenticated
+
+    var errorDescription: String? {
+        switch self {
+        case .missingHousehold:
+            return "Kein Haushalt ausgewählt."
+        case .notAuthenticated:
+            return "Bitte melde dich an, um Einladungen zu verwalten."
+        }
+    }
+}
+
 @MainActor
 final class KorbiSettings: ObservableObject {
     @Published private(set) var households: [Household]
@@ -69,6 +93,7 @@ final class KorbiSettings: ObservableObject {
     @Published private(set) var palette: KorbiColorPalette
     @Published private(set) var householdMembers: [UUID: [HouseholdMemberProfile]]
     @Published private(set) var householdItems: [UUID: [HouseholdItem]]
+    @Published private(set) var householdInvites: [UUID: HouseholdInvite]
     @Published private(set) var profileName: String
 
     let voiceRecordingWebhookURL: URL
@@ -95,6 +120,7 @@ final class KorbiSettings: ObservableObject {
         self.supabaseClient = supabaseClient
         self.householdMembers = [:]
         self.householdItems = [:]
+        self.householdInvites = [:]
         self.profileName = ""
 
         ensureValidSelection()
@@ -325,6 +351,71 @@ final class KorbiSettings: ObservableObject {
                 print("Failed to rename household: \(error)")
                 #endif
             }
+        }
+    }
+
+    func currentInvite(for householdID: UUID) -> HouseholdInvite? {
+        householdInvites[householdID]
+    }
+
+    @discardableResult
+    func createInvite(
+        for householdID: UUID,
+        email: String? = nil,
+        role: InviteRole = .viewer,
+        ttlHours: Int = 168
+    ) async throws -> HouseholdInvite {
+        guard let authManager else { throw InviteError.notAuthenticated }
+
+        do {
+            let session = try await authManager.getValidSession()
+            activeSession = session
+            let response = try await supabaseClient.createInvite(
+                householdID: householdID,
+                email: email,
+                role: role,
+                ttlHours: ttlHours,
+                accessToken: session.accessToken
+            )
+            let invite = HouseholdInvite(id: response.id, token: response.token, expiresAt: response.expiresAt)
+            householdInvites[householdID] = invite
+            return invite
+        } catch {
+            throw error
+        }
+    }
+
+    func revokeInvite(for householdID: UUID) async throws {
+        guard let authManager else { throw InviteError.notAuthenticated }
+        guard let invite = householdInvites[householdID] else { return }
+
+        do {
+            let session = try await authManager.getValidSession()
+            activeSession = session
+            try await supabaseClient.revokeInvite(inviteID: invite.id, accessToken: session.accessToken)
+            householdInvites[householdID] = nil
+        } catch {
+            throw error
+        }
+    }
+
+    @discardableResult
+    func acceptInvite(token: String) async throws -> Household? {
+        guard let authManager else { throw InviteError.notAuthenticated }
+
+        do {
+            let session = try await authManager.getValidSession()
+            activeSession = session
+            let acceptance = try await supabaseClient.acceptInvite(token: token, accessToken: session.accessToken)
+            await refreshData(with: session)
+            if let household = households.first(where: { $0.id == acceptance.householdID }) {
+                selectedHouseholdID = household.id
+                return household
+            }
+            selectedHouseholdID = acceptance.householdID
+            return households.first(where: { $0.id == acceptance.householdID })
+        } catch {
+            throw error
         }
     }
 
