@@ -17,6 +17,8 @@ struct SettingsView: View {
     @State private var renameHouseholdName = ""
     @State private var householdPendingDeletion: Household? = nil
     @State private var isConfirmingHouseholdDeletion = false
+    @State private var householdPendingLeave: Household? = nil
+    @State private var isConfirmingHouseholdLeave = false
 
     var body: some View {
         NavigationStack {
@@ -61,6 +63,7 @@ struct SettingsView: View {
                             }
                             .buttonStyle(.plain)
                             .foregroundStyle(settings.palette.primary)
+                            .disabled(!settings.canManageCurrentHousehold)
                         } else {
                             Text("Noch kein Haushalt angelegt")
                                 .font(KorbiTheme.Typography.body())
@@ -94,7 +97,7 @@ struct SettingsView: View {
                     .tint(.red)
                     .controlSize(.large)
                     .clipShape(RoundedRectangle(cornerRadius: KorbiTheme.Metrics.compactCornerRadius, style: .continuous))
-                    .disabled(settings.households.isEmpty)
+                    .disabled(settings.ownerHouseholds.isEmpty)
 
                     Button {
                         isPresentingShareSheet = true
@@ -107,7 +110,36 @@ struct SettingsView: View {
                     .tint(settings.palette.primary)
                     .controlSize(.large)
                     .clipShape(RoundedRectangle(cornerRadius: KorbiTheme.Metrics.compactCornerRadius, style: .continuous))
-                    .disabled(settings.currentHousehold == nil)
+                    .disabled(!settings.canShareCurrentHousehold)
+                }
+
+                Section(header: Text("Beigetretene Haushalte").font(KorbiTheme.Typography.title())) {
+                    if settings.viewerHouseholds.isEmpty {
+                        Text("Du bist derzeit keinen Haushalten beigetreten.")
+                            .font(KorbiTheme.Typography.body())
+                            .foregroundStyle(settings.palette.textSecondary)
+                            .padding(.vertical, 4)
+                    } else {
+                        ForEach(settings.viewerHouseholds) { household in
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(household.name)
+                                    .font(KorbiTheme.Typography.body(weight: .semibold))
+
+                                Button {
+                                    householdPendingLeave = household
+                                    isConfirmingHouseholdLeave = true
+                                } label: {
+                                    Label("Haushalt verlassen", systemImage: "rectangle.portrait.and.arrow.right")
+                                        .font(KorbiTheme.Typography.body(weight: .semibold))
+                                }
+                                .buttonStyle(.bordered)
+                                .tint(.red)
+                                .controlSize(.small)
+                                .clipShape(RoundedRectangle(cornerRadius: KorbiTheme.Metrics.compactCornerRadius, style: .continuous))
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
                 }
 
                 Section(header: Text("Darstellung").font(KorbiTheme.Typography.title())) {
@@ -197,7 +229,7 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $isPresentingDeleteHousehold) {
             DeleteHouseholdSheet(
-                households: settings.households,
+                households: settings.ownerHouseholds,
                 onDismiss: { isPresentingDeleteHousehold = false },
                 onConfirmDeletion: { household in
                     householdPendingDeletion = household
@@ -221,6 +253,21 @@ struct SettingsView: View {
             }
         } message: { household in
             Text("Möchtest du \(household.name) wirklich löschen? Dieser Schritt kann nicht rückgängig gemacht werden.")
+        }
+        .alert("Haushalt verlassen", isPresented: $isConfirmingHouseholdLeave, presenting: householdPendingLeave) { household in
+            Button("Verlassen", role: .destructive) {
+                Task {
+                    await settings.leaveHousehold(household)
+                    await MainActor.run {
+                        householdPendingLeave = nil
+                    }
+                }
+            }
+            Button("Abbrechen", role: .cancel) {
+                householdPendingLeave = nil
+            }
+        } message: { household in
+            Text("Möchtest du \(household.name) wirklich verlassen?")
         }
     }
 }
@@ -575,7 +622,7 @@ struct DeleteHouseholdSheet: View {
                     }
                 }
                 if households.isEmpty {
-                    Text("Es sind keine Haushalte vorhanden.")
+                    Text("Du verwaltest derzeit keine Haushalte.")
                         .font(KorbiTheme.Typography.body())
                         .foregroundStyle(settings.palette.textSecondary)
                         .padding(.vertical, 8)

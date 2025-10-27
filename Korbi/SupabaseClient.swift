@@ -37,6 +37,7 @@ protocol SupabaseService {
     func deleteHousehold(id: UUID, accessToken: String) async throws
     func updateHouseholdName(id: UUID, name: String, accessToken: String) async throws
     func fetchHouseholdMembers(householdID: UUID, accessToken: String) async throws -> [SupabaseHouseholdMember]
+    func fetchMemberships(userID: UUID, accessToken: String) async throws -> [SupabaseMembership]
     func updateHouseholdMemberName(userID: UUID, householdID: UUID, name: String, accessToken: String) async throws
     func fetchItems(accessToken: String, householdID: UUID?) async throws -> [SupabaseItem]
     func deleteItem(id: UUID, accessToken: String) async throws
@@ -49,6 +50,7 @@ protocol SupabaseService {
     ) async throws -> SupabaseInvite
     func revokeInvite(inviteID: UUID, accessToken: String) async throws
     func acceptInvite(token: String, accessToken: String) async throws -> SupabaseInviteAcceptance
+    func leaveHousehold(householdID: UUID, userID: UUID, accessToken: String) async throws
 }
 
 enum SupabaseError: LocalizedError {
@@ -243,6 +245,19 @@ final class SupabaseClient: SupabaseService {
         return try await performDecodingRequest(request)
     }
 
+    func fetchMemberships(userID: UUID, accessToken: String) async throws -> [SupabaseMembership] {
+        let request = try dataRequest(
+            path: "rest/v1/household_memberships",
+            method: "GET",
+            queryItems: [
+                URLQueryItem(name: "user_id", value: "eq.\(userID.uuidString)"),
+                URLQueryItem(name: "select", value: "household_id,role")
+            ],
+            accessToken: accessToken
+        )
+        return try await performDecodingRequest(request)
+    }
+
     func updateHouseholdMemberName(userID: UUID, householdID: UUID, name: String, accessToken: String) async throws {
         var request = try dataRequest(
             path: "rest/v1/household_memberships",
@@ -325,6 +340,19 @@ final class SupabaseClient: SupabaseService {
         )
         request.httpBody = try encoder.encode(InviteAcceptancePayload(token: token))
         return try await performDecodingRequest(request)
+    }
+
+    func leaveHousehold(householdID: UUID, userID: UUID, accessToken: String) async throws {
+        let request = try dataRequest(
+            path: "rest/v1/household_memberships",
+            method: "DELETE",
+            queryItems: [
+                URLQueryItem(name: "household_id", value: "eq.\(householdID.uuidString)"),
+                URLQueryItem(name: "user_id", value: "eq.\(userID.uuidString)")
+            ],
+            accessToken: accessToken
+        )
+        try await performEmptyRequest(request)
     }
 }
 
@@ -655,6 +683,16 @@ struct SupabaseHouseholdMember: Codable, Identifiable, Equatable {
 
     var id: String {
         "\(householdID.uuidString)-\(userID.uuidString)"
+    }
+}
+
+struct SupabaseMembership: Codable, Equatable {
+    let householdID: UUID
+    let role: String?
+
+    enum CodingKeys: String, CodingKey {
+        case householdID = "household_id"
+        case role
     }
 }
 
