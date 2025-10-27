@@ -379,7 +379,7 @@ final class KorbiSettings: ObservableObject {
         ttlHours: Int = 168
     ) async throws -> HouseholdInvite {
         guard let authManager else { throw InviteError.notAuthenticated }
-        guard role(for: householdID) == "owner" else { throw InviteError.insufficientPermissions }
+        guard self.role(for: householdID) == "owner" else { throw InviteError.insufficientPermissions }
 
         do {
             let session = try await authManager.getValidSession()
