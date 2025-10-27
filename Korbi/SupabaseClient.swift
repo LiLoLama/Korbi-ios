@@ -530,18 +530,42 @@ private extension SupabaseClient {
             return try mapSessionPayload(session)
         }
 
-        guard let accessToken = authResponse.accessToken,
-              let user = authResponse.user else {
-            throw SupabaseError.invalidResponse
+        if let accessToken = authResponse.accessToken, let user = authResponse.user {
+            return SupabaseAuthSession(
+                accessToken: accessToken,
+                refreshToken: authResponse.refreshToken,
+                userID: user.id,
+                email: user.email ?? "",
+                expiresAt: expirationDate(from: authResponse.expiresIn)
+            )
         }
 
-        return SupabaseAuthSession(
-            accessToken: accessToken,
-            refreshToken: authResponse.refreshToken,
-            userID: user.id,
-            email: user.email ?? "",
-            expiresAt: expirationDate(from: authResponse.expiresIn)
-        )
+        if let user = authResponse.user {
+            return SupabaseAuthSession(
+                accessToken: authResponse.accessToken ?? "",
+                refreshToken: authResponse.refreshToken,
+                userID: user.id,
+                email: user.email ?? "",
+                expiresAt: expirationDate(from: authResponse.expiresIn)
+            )
+        }
+
+        // Supabase can return a 200 status with neither a session nor a populated user
+        // when email confirmation is required. Surface an empty session so the caller
+        // can treat it as a pending confirmation instead of an error.
+        if (authResponse.accessToken?.isEmpty ?? true),
+           authResponse.refreshToken == nil,
+           authResponse.session == nil {
+            return SupabaseAuthSession(
+                accessToken: "",
+                refreshToken: nil,
+                userID: UUID(),
+                email: "",
+                expiresAt: expirationDate(from: authResponse.expiresIn)
+            )
+        }
+
+        throw SupabaseError.invalidResponse
     }
 
     func mapSessionPayload(_ payload: AuthResponse.SessionPayload) throws -> SupabaseAuthSession {
