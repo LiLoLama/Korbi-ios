@@ -146,7 +146,7 @@ struct LoginView: View {
             do {
                 if isRegistering {
                     try await authManager.register(email: email, password: password, confirmation: confirmation)
-                    successMessage = "Registrierung erfolgreich! Bitte prüfe deine E-Mails, um die Registrierung zu bestätigen."
+                    successMessage = authManager.registrationStatusMessage
                     clearPasswordFields()
                 } else {
                     try await authManager.login(email: email, password: password)

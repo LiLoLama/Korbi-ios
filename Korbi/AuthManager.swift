@@ -8,6 +8,8 @@ enum AuthError: LocalizedError, Equatable {
     case emailAlreadyRegistered
     case invalidCredentials
     case missingConfiguration
+    case invalidRegistrationData
+    case serverError
 
     var errorDescription: String? {
         switch self {
@@ -23,6 +25,10 @@ enum AuthError: LocalizedError, Equatable {
             return "Die Zugangsdaten sind nicht korrekt."
         case .missingConfiguration:
             return "Supabase ist nicht konfiguriert."
+        case .invalidRegistrationData:
+            return "E-Mail ungültig oder Passwort zu schwach."
+        case .serverError:
+            return "Technisches Problem – bitte später erneut versuchen."
         }
     }
 }
@@ -31,6 +37,8 @@ enum AuthError: LocalizedError, Equatable {
 final class AuthManager: ObservableObject {
     @Published private(set) var isAuthenticated: Bool = false
     @Published private(set) var currentUserEmail: String? = nil
+    @Published private(set) var registrationPendingConfirmation: Bool = false
+    @Published private(set) var registrationStatusMessage: String? = nil
 
     private struct StoredSession: Codable, Equatable {
         let accessToken: String
@@ -112,8 +120,10 @@ final class AuthManager: ObservableObject {
             isAuthenticated = true
             self.session = session
             scheduleRefresh(for: session)
+            registrationPendingConfirmation = false
+            registrationStatusMessage = nil
         } catch let error as SupabaseError {
-            throw mapSupabaseError(error)
+            throw mapSignInError(error)
         } catch {
             throw error
         }
@@ -126,11 +136,35 @@ final class AuthManager: ObservableObject {
         guard password.count >= 6 else { throw AuthError.passwordTooShort }
         guard password == confirmation else { throw AuthError.passwordsDoNotMatch }
 
+        registrationPendingConfirmation = false
+        registrationStatusMessage = nil
+
         do {
             let session = try await supabaseClient.signUp(email: normalizedEmail, password: password)
+            if session.accessToken.isEmpty {
+                registrationPendingConfirmation = true
+                registrationStatusMessage = "Bestätigungs-Mail gesendet. Bitte bestätige deine E-Mail, bevor du dich einloggst."
+                currentUserEmail = normalizedEmail
+                return
+            }
+
+            let storedSession = StoredSession(
+                session: session,
+                primaryHouseholdID: existingHouseholdID(for: session),
+                fallbackEmail: normalizedEmail
+            )
+            self.storedSession = storedSession
+            currentUserEmail = storedSession.email
+            isAuthenticated = true
+            self.session = session
+            registrationPendingConfirmation = false
+            registrationStatusMessage = nil
+            scheduleRefresh(for: session)
             try await supabaseClient.updateMembershipEmail(userID: session.userID, email: normalizedEmail)
         } catch let error as SupabaseError {
-            throw mapSupabaseError(error)
+            registrationPendingConfirmation = false
+            registrationStatusMessage = nil
+            throw mapSignUpError(error)
         }
     }
 
@@ -142,6 +176,8 @@ final class AuthManager: ObservableObject {
         storedSession = nil
         userDefaults.removeObject(forKey: storedSessionKey)
         session = nil
+        registrationPendingConfirmation = false
+        registrationStatusMessage = nil
     }
 
     func getValidSession() async throws -> SupabaseAuthSession {
@@ -292,20 +328,44 @@ final class AuthManager: ObservableObject {
         }
     }
 
-    private func mapSupabaseError(_ error: SupabaseError) -> AuthError {
+    private func mapSignInError(_ error: SupabaseError) -> AuthError {
         switch error {
+        case .missingConfiguration:
+            return .missingConfiguration
         case .invalidResponse:
-            return .invalidCredentials
+            return .serverError
+        case let .requestFailed(statusCode, _):
+            switch statusCode {
+            case 400, 401, 403:
+                return .invalidCredentials
+            case 500...599:
+                return .serverError
+            default:
+                return .serverError
+            }
+        }
+    }
+
+    private func mapSignUpError(_ error: SupabaseError) -> AuthError {
+        switch error {
+        case .missingConfiguration:
+            return .missingConfiguration
+        case .invalidResponse:
+            return .serverError
         case let .requestFailed(statusCode, message):
             if (statusCode == 400 || statusCode == 409) && message.localizedCaseInsensitiveContains("already") {
                 return .emailAlreadyRegistered
             }
-            if statusCode == 400 || statusCode == 401 || statusCode == 403 || statusCode == 422 {
-                return .invalidCredentials
+            if statusCode == 400 {
+                return .invalidRegistrationData
             }
-            return .invalidCredentials
-        case .missingConfiguration:
-            return .missingConfiguration
+            if statusCode == 422 {
+                return .invalidRegistrationData
+            }
+            if (500...599).contains(statusCode) {
+                return .serverError
+            }
+            return .serverError
         }
     }
 }
