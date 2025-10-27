@@ -69,6 +69,7 @@ struct HouseholdInvite: Identifiable, Equatable {
 enum InviteError: LocalizedError {
     case missingHousehold
     case notAuthenticated
+    case insufficientPermissions
 
     var errorDescription: String? {
         switch self {
@@ -76,6 +77,8 @@ enum InviteError: LocalizedError {
             return "Kein Haushalt ausgewählt."
         case .notAuthenticated:
             return "Bitte melde dich an, um Einladungen zu verwalten."
+        case .insufficientPermissions:
+            return "Dir fehlen die Berechtigungen, um Einladungen zu verwalten."
         }
     }
 }
@@ -94,6 +97,7 @@ final class KorbiSettings: ObservableObject {
     @Published private(set) var householdMembers: [UUID: [HouseholdMemberProfile]]
     @Published private(set) var householdItems: [UUID: [HouseholdItem]]
     @Published private(set) var householdInvites: [UUID: HouseholdInvite]
+    @Published private(set) var householdRoles: [UUID: String]
     @Published private(set) var profileName: String
 
     let voiceRecordingWebhookURL: URL
@@ -121,6 +125,7 @@ final class KorbiSettings: ObservableObject {
         self.householdMembers = [:]
         self.householdItems = [:]
         self.householdInvites = [:]
+        self.householdRoles = [:]
         self.profileName = ""
 
         ensureValidSelection()
@@ -197,6 +202,13 @@ final class KorbiSettings: ObservableObject {
             let remoteHouseholds = try await supabaseClient.fetchHouseholds(accessToken: session.accessToken)
             let mappedHouseholds = remoteHouseholds.map { Household(id: $0.id, name: $0.name) }
             households = mappedHouseholds
+            let memberships = try await supabaseClient.fetchMemberships(userID: session.userID, accessToken: session.accessToken)
+            let roles = memberships.reduce(into: [UUID: String]()) { partialResult, membership in
+                if let role = membership.role?.lowercased() {
+                    partialResult[membership.householdID] = role
+                }
+            }
+            householdRoles = roles
             ensureValidSelection()
             let validIDs = Set(mappedHouseholds.map { $0.id })
             householdMembers = householdMembers.filter { validIDs.contains($0.key) }
@@ -326,6 +338,7 @@ final class KorbiSettings: ObservableObject {
 
     func updateCurrentHouseholdName(to name: String) {
         guard let householdID = selectedHouseholdID else { return }
+        guard role(for: householdID) == "owner" else { return }
 
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
@@ -366,6 +379,7 @@ final class KorbiSettings: ObservableObject {
         ttlHours: Int = 168
     ) async throws -> HouseholdInvite {
         guard let authManager else { throw InviteError.notAuthenticated }
+        guard self.role(for: householdID) == "owner" else { throw InviteError.insufficientPermissions }
 
         do {
             let session = try await authManager.getValidSession()
@@ -388,6 +402,7 @@ final class KorbiSettings: ObservableObject {
     func revokeInvite(for householdID: UUID) async throws {
         guard let authManager else { throw InviteError.notAuthenticated }
         guard let invite = householdInvites[householdID] else { return }
+        guard role(for: householdID) == "owner" else { throw InviteError.insufficientPermissions }
 
         do {
             let session = try await authManager.getValidSession()
@@ -419,6 +434,33 @@ final class KorbiSettings: ObservableObject {
         }
     }
 
+    func leaveHousehold(_ household: Household) async {
+        guard let authManager else {
+            #if DEBUG
+            print("Cannot leave household without an auth manager")
+            #endif
+            return
+        }
+
+        do {
+            let session = try await authManager.getValidSession()
+            activeSession = session
+            try await supabaseClient.leaveHousehold(
+                householdID: household.id,
+                userID: session.userID,
+                accessToken: session.accessToken
+            )
+            await refreshData(with: session)
+            if selectedHouseholdID == household.id {
+                ensureValidSelection()
+            }
+        } catch {
+            #if DEBUG
+            print("Failed to leave household: \(error)")
+            #endif
+        }
+    }
+
     var currentHousehold: Household? {
         guard !households.isEmpty else { return nil }
         if let selectedHouseholdID,
@@ -426,6 +468,31 @@ final class KorbiSettings: ObservableObject {
             return household
         }
         return households.first
+    }
+
+    func role(for householdID: UUID) -> String? {
+        householdRoles[householdID]
+    }
+
+    var currentHouseholdRole: String? {
+        guard let householdID = currentHousehold?.id else { return nil }
+        return role(for: householdID)
+    }
+
+    var ownerHouseholds: [Household] {
+        households.filter { role(for: $0.id) == "owner" }
+    }
+
+    var viewerHouseholds: [Household] {
+        households.filter { role(for: $0.id) == "viewer" }
+    }
+
+    var canManageCurrentHousehold: Bool {
+        currentHouseholdRole == "owner"
+    }
+
+    var canShareCurrentHousehold: Bool {
+        canManageCurrentHousehold
     }
 
     var currentHouseholdMembers: [HouseholdMemberProfile] {
