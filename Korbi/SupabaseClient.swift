@@ -530,13 +530,22 @@ private extension SupabaseClient {
             return try mapSessionPayload(session)
         }
 
-        guard let accessToken = authResponse.accessToken,
-              let user = authResponse.user else {
+        if let accessToken = authResponse.accessToken, let user = authResponse.user {
+            return SupabaseAuthSession(
+                accessToken: accessToken,
+                refreshToken: authResponse.refreshToken,
+                userID: user.id,
+                email: user.email ?? "",
+                expiresAt: expirationDate(from: authResponse.expiresIn)
+            )
+        }
+
+        guard let user = authResponse.user else {
             throw SupabaseError.invalidResponse
         }
 
         return SupabaseAuthSession(
-            accessToken: accessToken,
+            accessToken: "",
             refreshToken: authResponse.refreshToken,
             userID: user.id,
             email: user.email ?? "",
