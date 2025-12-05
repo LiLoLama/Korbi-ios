@@ -537,7 +537,7 @@ private struct HouseholdShareSheet: View {
             return inviteError.localizedDescription
         }
         if let supabaseError = error as? SupabaseError {
-            return supabaseError.localizedDescription ?? "Unbekannter Fehler"
+            return supabaseError.localizedDescription
         }
         return error.localizedDescription
     }

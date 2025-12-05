@@ -109,10 +109,10 @@ final class InviteCoordinator: ObservableObject {
 
     private static func map(error: Error) -> String {
         if let inviteError = error as? InviteError {
-            return inviteError.localizedDescription ?? "Die Einladung konnte nicht angenommen werden."
+            return inviteError.localizedDescription
         }
         if let supabaseError = error as? SupabaseError {
-            return supabaseError.localizedDescription ?? "Die Einladung konnte nicht angenommen werden."
+            return supabaseError.localizedDescription
         }
         return error.localizedDescription
     }

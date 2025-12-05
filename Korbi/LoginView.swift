@@ -127,7 +127,7 @@ struct LoginView: View {
                 .padding(.vertical, 48)
             }
         }
-        .onChange(of: isRegistering) { _ in
+        .onChange(of: isRegistering) {
             withAnimation(.easeInOut) {
                 errorMessage = nil
                 successMessage = nil
