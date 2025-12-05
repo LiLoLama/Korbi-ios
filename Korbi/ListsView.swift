@@ -152,13 +152,13 @@ private struct ListDetailView: View {
                     .listRowBackground(Color.clear)
                     .swipeActions(edge: .leading, allowsFullSwipe: true) {
                         Button {
-                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                            _ = withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                                 purchasedItems.insert(item.id)
                             }
                             Task {
                                 try? await Task.sleep(nanoseconds: 350_000_000)
                                 await settings.markItemAsPurchased(item)
-                                await MainActor.run {
+                                _ = await MainActor.run {
                                     withAnimation(.easeInOut(duration: 0.25)) {
                                         purchasedItems.remove(item.id)
                                     }

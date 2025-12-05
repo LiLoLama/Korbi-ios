@@ -147,7 +147,7 @@ struct FloatingMicButton: View {
             .buttonStyle(.plain)
             .accessibilityLabel(recorder.isRecording ? "Aufnahme stoppen" : "Aufnahme starten")
             .disabled(recorder.isSending)
-            .onChange(of: recorder.isRecording) { recording in
+            .onChange(of: recorder.isRecording) { _, recording in
                 if recording {
                     withAnimation(pulseAnimation) { isPulsing = true }
                 } else {
@@ -158,9 +158,9 @@ struct FloatingMicButton: View {
             feedbackMessages
         }
         .onAppear(perform: configureRecorder)
-        .onChange(of: providedWebhookURL) { _ in configureRecorder() }
-        .onChange(of: settings.voiceRecordingWebhookURL) { _ in configureRecorder() }
-        .onChange(of: settings.currentHousehold?.id) { _ in configureRecorder() }
+        .onChange(of: providedWebhookURL) { configureRecorder() }
+        .onChange(of: settings.voiceRecordingWebhookURL) { configureRecorder() }
+        .onChange(of: settings.currentHousehold?.id) { configureRecorder() }
     }
 
     private var backgroundFill: LinearGradient {

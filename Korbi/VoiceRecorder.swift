@@ -1,5 +1,6 @@
 import Foundation
 import AVFoundation
+import AVFAudio
 
 @MainActor
 final class VoiceRecorder: NSObject, ObservableObject {
@@ -178,15 +179,31 @@ final class VoiceRecorder: NSObject, ObservableObject {
     }
 
     private func ensurePermission(for session: AVAudioSession) async throws -> Bool {
-        switch session.recordPermission {
+        let permissionStatus: AVAudioSession.RecordPermission
+
+        if #available(iOS 17.0, *) {
+            permissionStatus = AVAudioApplication.shared.recordPermission
+        } else {
+            permissionStatus = session.recordPermission
+        }
+
+        switch permissionStatus {
         case .granted:
             return true
         case .denied:
             return false
         case .undetermined:
-            return await withCheckedContinuation { continuation in
-                session.requestRecordPermission { granted in
-                    continuation.resume(returning: granted)
+            if #available(iOS 17.0, *) {
+                return await withCheckedContinuation { continuation in
+                    AVAudioApplication.shared.requestRecordPermission { granted in
+                        continuation.resume(returning: granted)
+                    }
+                }
+            } else {
+                return await withCheckedContinuation { continuation in
+                    session.requestRecordPermission { granted in
+                        continuation.resume(returning: granted)
+                    }
                 }
             }
         @unknown default:
@@ -246,10 +263,13 @@ extension VoiceRecorder {
 }
 
 extension VoiceRecorder: AVAudioRecorderDelegate {
-    func audioRecorderEncodeErrorDidOccur(_ recorder: AVAudioRecorder, error: Error?) {
-        if let error {
-            errorMessage = error.localizedDescription
-            scheduleErrorCleanup()
+    nonisolated func audioRecorderEncodeErrorDidOccur(_ recorder: AVAudioRecorder, error: Error?) {
+        guard let error else { return }
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.errorMessage = error.localizedDescription
+            self.scheduleErrorCleanup()
         }
     }
 }

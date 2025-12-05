@@ -25,7 +25,7 @@ struct HomeView: View {
                     .padding(.horizontal, 24)
                     .padding(.top, 16)
                 }
-                .onChange(of: settings.currentHouseholdItems) { items in
+                .onChange(of: settings.currentHouseholdItems) { _, items in
                     guard let pendingID = pendingCompletionItemID else { return }
                     if !items.contains(where: { $0.id == pendingID }) {
                         pendingCompletionItemID = nil
@@ -150,7 +150,7 @@ struct HomeView: View {
                                 Task {
                                     try? await Task.sleep(nanoseconds: 350_000_000)
                                     await settings.markItemAsPurchased(item)
-                                    await MainActor.run {
+                                    _ = await MainActor.run {
                                         withAnimation(.easeInOut(duration: 0.25)) {
                                             purchasedItems.remove(item.id)
                                         }
@@ -198,7 +198,7 @@ struct HomeView: View {
 
         Task {
             await settings.markItemAsPurchased(item)
-            await MainActor.run {
+            _ = await MainActor.run {
                 withAnimation(.easeInOut(duration: 0.25)) {
                     purchasedItems.remove(item.id)
                 }
