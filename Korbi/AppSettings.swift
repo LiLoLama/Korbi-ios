@@ -62,7 +62,7 @@ struct HouseholdInvite: Identifiable, Equatable {
     let expiresAt: Date?
 
     var linkURL: URL {
-        URL(string: "https://liamschmid.com/korbiinvite?token=\(token)")!
+        URL(string: "https://invite.korbi.app/household/invite?token=\(token)")!
     }
 }
 
