@@ -95,11 +95,7 @@ final class InviteCoordinator: ObservableObject {
             return token
         }
 
-        if scheme == "https", let host, ["invite.korbi.app"].contains(host), path.hasPrefix("/household/invite") {
-            return token
-        }
-
-        if host == "liamschmid.com", path == "/korbiinvite" {
+        if scheme == "https", host == "liamschmid.com", path == "/korbiinvite" {
             return token
         }
 

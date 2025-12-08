@@ -4,7 +4,7 @@
 <dict>
     <key>com.apple.developer.associated-domains</key>
     <array>
-        <string>applinks:invite.korbi.app</string>
+        <string>applinks:liamschmid.com</string>
     </array>
 </dict>
 </plist>

@@ -4,8 +4,8 @@
       {
         "appID": "7Z2B5728WW.liamschmid.Korbi",
         "paths": [
-          "/household/invite",
-          "/household/invite/*"
+          "/korbiinvite",
+          "/korbiinvite/*"
         ]
       }
     ]
