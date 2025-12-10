@@ -41,6 +41,7 @@ protocol SupabaseService {
     func updateHouseholdMemberName(userID: UUID, householdID: UUID, name: String, accessToken: String) async throws
     func fetchItems(accessToken: String, householdID: UUID?) async throws -> [SupabaseItem]
     func deleteItem(id: UUID, accessToken: String) async throws
+    func sendHouseholdNotification(message: String, householdID: UUID, accessToken: String) async throws
     func createInvite(
         householdID: UUID,
         email: String?,
@@ -299,6 +300,18 @@ final class SupabaseClient: SupabaseService {
         try await performEmptyRequest(request)
     }
 
+    func sendHouseholdNotification(message: String, householdID: UUID, accessToken: String) async throws {
+        var request = try dataRequest(
+            path: "rest/v1/notifications",
+            method: "POST",
+            accessToken: accessToken
+        )
+        request.addValue("return=minimal", forHTTPHeaderField: "Prefer")
+        let payload = [HouseholdNotificationPayload(householdID: householdID, message: message)]
+        request.httpBody = try encoder.encode(payload)
+        try await performEmptyRequest(request)
+    }
+
     func createInvite(
         householdID: UUID,
         email: String?,
@@ -453,6 +466,16 @@ private extension SupabaseClient {
 
         enum CodingKeys: String, CodingKey {
             case token = "p_token"
+        }
+    }
+
+    struct HouseholdNotificationPayload: Encodable {
+        let householdID: UUID
+        let message: String
+
+        enum CodingKeys: String, CodingKey {
+            case householdID = "household_id"
+            case message
         }
     }
 

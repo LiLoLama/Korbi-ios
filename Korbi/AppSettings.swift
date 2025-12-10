@@ -423,12 +423,15 @@ final class KorbiSettings: ObservableObject {
             activeSession = session
             let acceptance = try await supabaseClient.acceptInvite(token: token, accessToken: session.accessToken)
             await refreshData(with: session)
-            if let household = households.first(where: { $0.id == acceptance.householdID }) {
-                selectedHouseholdID = household.id
-                return household
+            let household = households.first(where: { $0.id == acceptance.householdID }) ?? Household(
+                id: acceptance.householdID,
+                name: acceptance.householdName ?? "Haushalt"
+            )
+            selectedHouseholdID = household.id
+            Task {
+                await notifyMemberJoined(household: household, session: session)
             }
-            selectedHouseholdID = acceptance.householdID
-            return households.first(where: { $0.id == acceptance.householdID })
+            return household
         } catch {
             throw error
         }
@@ -578,12 +581,62 @@ final class KorbiSettings: ObservableObject {
                     category: item.category ?? "Sonstiges"
                 )
             }
+            let previousItems = householdItems[householdID] ?? []
+            let existingIDs = Set(previousItems.map(\.id))
+            let currentIDs = Set(mapped.map(\.id))
+            let addedItems = currentIDs.subtracting(existingIDs)
             await MainActor.run {
                 householdItems[householdID] = mapped
+            }
+            if !addedItems.isEmpty,
+               let household = households.first(where: { $0.id == householdID }) {
+                Task {
+                    await notifyHouseholdAboutNewItems(in: household, session: session)
+                }
             }
         } catch {
             #if DEBUG
             print("Failed to fetch items: \(error)")
+            #endif
+        }
+    }
+
+    private func notifyHouseholdAboutNewItems(in household: Household, session: SupabaseAuthSession) async {
+        let message = "Es wurden neue Artikel zu \(household.name) hinzugefügt"
+        do {
+            try await supabaseClient.sendHouseholdNotification(
+                message: message,
+                householdID: household.id,
+                accessToken: session.accessToken
+            )
+        } catch {
+            #if DEBUG
+            print("Failed to send new items notification: \(error)")
+            #endif
+        }
+    }
+
+    private func notifyMemberJoined(household: Household, session: SupabaseAuthSession) async {
+        let trimmedName = profileName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let displayName: String
+        if !trimmedName.isEmpty, trimmedName.lowercased() != "du" {
+            displayName = trimmedName
+        } else if !session.email.isEmpty {
+            displayName = session.email
+        } else {
+            displayName = "Ein Mitglied"
+        }
+
+        let message = "\(displayName) ist dem Haushalt \(household.name) beigetreten"
+        do {
+            try await supabaseClient.sendHouseholdNotification(
+                message: message,
+                householdID: household.id,
+                accessToken: session.accessToken
+            )
+        } catch {
+            #if DEBUG
+            print("Failed to send member joined notification: \(error)")
             #endif
         }
     }
