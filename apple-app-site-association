@@ -1,0 +1,13 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appID": "7Z2B5728WW.liamschmid.Korbi",
+        "paths": [
+          "/korbiinvite",
+          "/korbiinvite/*"
+        ]
+      }
+    ]
+  }
+}

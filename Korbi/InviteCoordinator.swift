@@ -90,17 +90,12 @@ final class InviteCoordinator: ObservableObject {
         let scheme = components.scheme?.lowercased()
         let host = components.host?.lowercased()
         let path = components.path.lowercased()
-        let absolute = url.absoluteString.lowercased()
 
         if scheme == "korbi", host == "invite" {
             return token
         }
 
-        if let host, host.contains("korbiinvite") {
-            return token
-        }
-
-        if path.contains("korbiinvite") || absolute.contains("korbiinvite") {
+        if scheme == "https", host == "liamschmid.com", path == "/korbiinvite" {
             return token
         }
 
