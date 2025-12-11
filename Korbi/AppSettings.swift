@@ -595,7 +595,7 @@ final class KorbiSettings: ObservableObject {
     private func updateMembersAndProfile(for householdID: UUID, session: SupabaseAuthSession) async {
         do {
             let members = try await supabaseClient.fetchHouseholdMembers(householdID: householdID, accessToken: session.accessToken)
-            let mapped = members.map { member in
+            let mapped: [HouseholdMemberProfile] = members.map { member in
                 let avatarData = member.profileImageData
                 HouseholdMemberProfile(
                     id: member.id,
