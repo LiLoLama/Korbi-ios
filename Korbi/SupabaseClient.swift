@@ -39,6 +39,12 @@ protocol SupabaseService {
     func fetchHouseholdMembers(householdID: UUID, accessToken: String) async throws -> [SupabaseHouseholdMember]
     func fetchMemberships(userID: UUID, accessToken: String) async throws -> [SupabaseMembership]
     func updateHouseholdMemberName(userID: UUID, householdID: UUID, name: String, accessToken: String) async throws
+    func updateHouseholdMemberProfileImage(
+        userID: UUID,
+        householdID: UUID,
+        profileImageBase64: String?,
+        accessToken: String
+    ) async throws
     func fetchItems(accessToken: String, householdID: UUID?) async throws -> [SupabaseItem]
     func deleteItem(id: UUID, accessToken: String) async throws
     func sendHouseholdNotification(message: String, householdID: UUID, accessToken: String) async throws
@@ -272,6 +278,34 @@ final class SupabaseClient: SupabaseService {
         )
         request.addValue("return=representation", forHTTPHeaderField: "Prefer")
         let payload = ["name": name]
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload, options: [])
+        _ = try await performDecodingRequest(request) as [SupabaseHouseholdMember]
+    }
+
+    func updateHouseholdMemberProfileImage(
+        userID: UUID,
+        householdID: UUID,
+        profileImageBase64: String?,
+        accessToken: String
+    ) async throws {
+        var request = try dataRequest(
+            path: "rest/v1/household_memberships",
+            method: "PATCH",
+            queryItems: [
+                URLQueryItem(name: "household_id", value: "eq.\(householdID.uuidString)"),
+                URLQueryItem(name: "user_id", value: "eq.\(userID.uuidString)")
+            ],
+            accessToken: accessToken
+        )
+        request.addValue("return=representation", forHTTPHeaderField: "Prefer")
+
+        var payload: [String: Any] = [:]
+        if let profileImageBase64 {
+            payload["profile_img"] = profileImageBase64
+        } else {
+            payload["profile_img"] = NSNull()
+        }
+
         request.httpBody = try JSONSerialization.data(withJSONObject: payload, options: [])
         _ = try await performDecodingRequest(request) as [SupabaseHouseholdMember]
     }
@@ -708,6 +742,7 @@ struct SupabaseHouseholdMember: Codable, Identifiable, Equatable {
     let status: String?
     let name: String?
     let email: String?
+    let profileImg: String?
 
     enum CodingKeys: String, CodingKey {
         case householdID = "household_id"
@@ -716,10 +751,16 @@ struct SupabaseHouseholdMember: Codable, Identifiable, Equatable {
         case status
         case name
         case email
+        case profileImg = "profile_img"
     }
 
     var id: String {
         "\(householdID.uuidString)-\(userID.uuidString)"
+    }
+
+    var profileImageData: Data? {
+        guard let profileImg else { return nil }
+        return Data(base64Encoded: profileImg)
     }
 }
 

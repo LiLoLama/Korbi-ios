@@ -596,6 +596,7 @@ final class KorbiSettings: ObservableObject {
         do {
             let members = try await supabaseClient.fetchHouseholdMembers(householdID: householdID, accessToken: session.accessToken)
             let mapped = members.map { member in
+                let avatarData = member.profileImageData
                 HouseholdMemberProfile(
                     id: member.id,
                     userID: member.userID,
@@ -603,7 +604,7 @@ final class KorbiSettings: ObservableObject {
                     role: member.role,
                     status: member.status,
                     email: member.email,
-                    avatarData: member.userID == session.userID ? profileImageData : nil
+                    avatarData: avatarData
                 )
             }
             await MainActor.run {
@@ -612,6 +613,9 @@ final class KorbiSettings: ObservableObject {
                     currentUserID = session.userID
                     let fallbackName = profileName.isEmpty ? session.email : profileName
                     profileName = currentMember.name ?? fallbackName
+                    if let avatarData = currentMember.profileImageData {
+                        profileImageData = avatarData
+                    }
                 }
             }
         } catch {
@@ -622,7 +626,46 @@ final class KorbiSettings: ObservableObject {
     }
 
     func updateProfileImage(with data: Data?) {
-        profileImageData = data
+        guard let householdID = selectedHouseholdID else {
+            profileImageData = data
+            return
+        }
+
+        Task {
+            do {
+                guard let authManager else { return }
+                let session = try await authManager.getValidSession()
+                activeSession = session
+                let base64Image = data?.base64EncodedString()
+                try await supabaseClient.updateHouseholdMemberProfileImage(
+                    userID: session.userID,
+                    householdID: householdID,
+                    profileImageBase64: base64Image,
+                    accessToken: session.accessToken
+                )
+
+                await MainActor.run {
+                    profileImageData = data
+                    currentUserID = session.userID
+                    var members = householdMembers[householdID] ?? []
+                    syncMemberProfile(
+                        for: session.userID,
+                        householdID: householdID,
+                        name: nil,
+                        role: nil,
+                        status: nil,
+                        email: session.email,
+                        avatarData: data,
+                        existingMembers: &members
+                    )
+                    householdMembers[householdID] = members
+                }
+            } catch {
+                #if DEBUG
+                print("Failed to update profile image: \(error)")
+                #endif
+            }
+        }
     }
 
     private func updateItems(for householdID: UUID, session: SupabaseAuthSession) async {
