@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import PhotosUI
 
 struct SettingsView: View {
     @EnvironmentObject private var settings: KorbiSettings
@@ -13,6 +14,7 @@ struct SettingsView: View {
     @State private var profileEmail = "mia@example.com"
     @State private var favoriteStore = "Biomarkt am Platz"
     @State private var enableNotifications = true
+    @State private var profileImageData: Data? = nil
     @State private var newHouseholdName = ""
     @State private var renameHouseholdName = ""
     @State private var householdPendingDeletion: Household? = nil
@@ -36,6 +38,8 @@ struct SettingsView: View {
                     }
                     Button {
                         profileName = settings.profileName
+                        profileEmail = authManager.currentUserEmail ?? profileEmail
+                        profileImageData = settings.profileImageData
                         isPresentingProfileEditor = true
                     } label: {
                         Label("Profil bearbeiten", systemImage: "person.crop.circle")
@@ -185,8 +189,11 @@ struct SettingsView: View {
                 email: $profileEmail,
                 favoriteStore: $favoriteStore,
                 notificationsEnabled: $enableNotifications,
-                onDismiss: {
+                profileImageData: $profileImageData,
+                onDismiss: { isPresentingProfileEditor = false },
+                onSave: {
                     settings.updateProfileName(to: profileName)
+                    settings.updateProfileImage(with: profileImageData)
                     isPresentingProfileEditor = false
                 }
             )
@@ -284,7 +291,11 @@ private struct ProfileEditorSheet: View {
     @Binding var email: String
     @Binding var favoriteStore: String
     @Binding var notificationsEnabled: Bool
+    @Binding var profileImageData: Data?
     let onDismiss: () -> Void
+    let onSave: () -> Void
+
+    @State private var selectedPhoto: PhotosPickerItem? = nil
 
     var body: some View {
         NavigationStack {
@@ -292,9 +303,41 @@ private struct ProfileEditorSheet: View {
                 Section(header: Text("Profil")) {
                     TextField("Name", text: $name)
                         .textInputAutocapitalization(.words)
-                    TextField("E-Mail", text: $email)
-                        .keyboardType(.emailAddress)
-                        .textInputAutocapitalization(.never)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("E-Mail")
+                            .font(KorbiTheme.Typography.caption())
+                            .foregroundStyle(settings.palette.textSecondary)
+                        Text(email)
+                            .font(KorbiTheme.Typography.body())
+                            .foregroundStyle(settings.palette.textPrimary)
+                    }
+
+                    PhotosPicker(selection: $selectedPhoto, matching: .images) {
+                        HStack {
+                            if let profileImageData,
+                               let uiImage = UIImage(data: profileImageData) {
+                                Image(uiImage: uiImage)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 48, height: 48)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                    .accessibilityHidden(true)
+                            } else {
+                                Image(systemName: "person.crop.circle.fill")
+                                    .font(.system(size: 32))
+                                    .foregroundStyle(settings.palette.primary)
+                                    .frame(width: 48, height: 48)
+                                    .accessibilityHidden(true)
+                            }
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Profilbild")
+                                    .font(KorbiTheme.Typography.body(weight: .semibold))
+                                Text("Lade ein Bild hoch, das in deinem Haushalt angezeigt wird.")
+                                    .font(KorbiTheme.Typography.caption())
+                                    .foregroundStyle(settings.palette.textSecondary)
+                            }
+                        }
+                    }
                 }
 
                 Section(
@@ -311,7 +354,18 @@ private struct ProfileEditorSheet: View {
             .navigationTitle("Profil konfigurieren")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Fertig", action: onDismiss)
+                    Button("Abbrechen", action: onDismiss)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Speichern", action: onSave)
+                }
+            }
+            .onChange(of: selectedPhoto) { _, newValue in
+                guard let newValue else { return }
+                Task {
+                    if let data = try? await newValue.loadTransferable(type: Data.self) {
+                        await MainActor.run { profileImageData = data }
+                    }
                 }
             }
         }

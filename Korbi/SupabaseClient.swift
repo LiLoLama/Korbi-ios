@@ -52,6 +52,7 @@ protocol SupabaseService {
     func revokeInvite(inviteID: UUID, accessToken: String) async throws
     func acceptInvite(token: String, accessToken: String) async throws -> SupabaseInviteAcceptance
     func leaveHousehold(householdID: UUID, userID: UUID, accessToken: String) async throws
+    func removeMember(householdID: UUID, userID: UUID, accessToken: String) async throws
 }
 
 enum SupabaseError: LocalizedError {
@@ -356,6 +357,19 @@ final class SupabaseClient: SupabaseService {
     }
 
     func leaveHousehold(householdID: UUID, userID: UUID, accessToken: String) async throws {
+        let request = try dataRequest(
+            path: "rest/v1/household_memberships",
+            method: "DELETE",
+            queryItems: [
+                URLQueryItem(name: "household_id", value: "eq.\(householdID.uuidString)"),
+                URLQueryItem(name: "user_id", value: "eq.\(userID.uuidString)")
+            ],
+            accessToken: accessToken
+        )
+        try await performEmptyRequest(request)
+    }
+
+    func removeMember(householdID: UUID, userID: UUID, accessToken: String) async throws {
         let request = try dataRequest(
             path: "rest/v1/household_memberships",
             method: "DELETE",

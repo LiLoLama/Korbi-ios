@@ -43,9 +43,12 @@ struct Household: Identifiable, Equatable {
 
 struct HouseholdMemberProfile: Identifiable, Equatable {
     let id: String
+    let userID: UUID
     let name: String
     let role: String?
     let status: String?
+    let email: String?
+    let avatarData: Data?
 }
 
 struct HouseholdItem: Identifiable, Equatable {
@@ -85,11 +88,17 @@ enum InviteError: LocalizedError {
 
 @MainActor
 final class KorbiSettings: ObservableObject {
+    private enum StorageKey {
+        static let warmLightMode = "korbi.useWarmLightMode"
+        static let profileImage = "korbi.profileImage.data"
+    }
+
     @Published private(set) var households: [Household]
     @Published private(set) var selectedHouseholdID: UUID?
     @Published var useWarmLightMode: Bool {
         didSet {
             updatePalette()
+            userDefaults.set(useWarmLightMode, forKey: StorageKey.warmLightMode)
         }
     }
     @Published private(set) var recentPurchases: [String]
@@ -99,12 +108,20 @@ final class KorbiSettings: ObservableObject {
     @Published private(set) var householdInvites: [UUID: HouseholdInvite]
     @Published private(set) var householdRoles: [UUID: String]
     @Published private(set) var profileName: String
+    @Published private(set) var profileImageData: Data? {
+        didSet {
+            userDefaults.set(profileImageData, forKey: StorageKey.profileImage)
+            propagateProfileImage()
+        }
+    }
+    @Published private(set) var currentUserID: UUID?
 
     let voiceRecordingWebhookURL: URL
 
     private let supabaseClient: SupabaseService
     private weak var authManager: AuthManager?
     private var activeSession: SupabaseAuthSession?
+    private let userDefaults: UserDefaults
 
     init(
         households: [Household] = [],
@@ -113,26 +130,38 @@ final class KorbiSettings: ObservableObject {
         recentPurchases: [String] = [],
         voiceRecordingWebhookURL: URL? = nil,
         supabaseClient: SupabaseService = SupabaseClient(),
-        bundle: Bundle = .main
+        bundle: Bundle = .main,
+        userDefaults: UserDefaults = .standard
     ) {
+        let storedTheme = userDefaults.object(forKey: StorageKey.warmLightMode) as? Bool
+        let resolvedWarmLightMode = storedTheme ?? useWarmLightMode
+        let resolvedPalette: KorbiColorPalette = resolvedWarmLightMode ? .warmLight : .serene
+        let resolvedWebhookURL = voiceRecordingWebhookURL ?? KorbiSettings.resolveVoiceRecordingWebhook(from: bundle)
+
         self.households = households
         self.selectedHouseholdID = selectedHouseholdID
-        self.useWarmLightMode = useWarmLightMode
+        self.userDefaults = userDefaults
+        self.useWarmLightMode = resolvedWarmLightMode
         self.recentPurchases = recentPurchases
-        self.palette = useWarmLightMode ? .warmLight : .serene
-        self.voiceRecordingWebhookURL = voiceRecordingWebhookURL ?? KorbiSettings.resolveVoiceRecordingWebhook(from: bundle)
-        self.supabaseClient = supabaseClient
+        self.palette = resolvedPalette
         self.householdMembers = [:]
         self.householdItems = [:]
         self.householdInvites = [:]
         self.householdRoles = [:]
         self.profileName = ""
+        self.profileImageData = userDefaults.data(forKey: StorageKey.profileImage)
+        self.currentUserID = nil
+        self.voiceRecordingWebhookURL = resolvedWebhookURL
+        self.supabaseClient = supabaseClient
 
         ensureValidSelection()
     }
 
     func configure(authManager: AuthManager) {
         self.authManager = authManager
+        if profileName.isEmpty, let email = authManager.currentUserEmail {
+            profileName = email
+        }
     }
 
     private static func resolveVoiceRecordingWebhook(from bundle: Bundle) -> URL {
@@ -198,6 +227,7 @@ final class KorbiSettings: ObservableObject {
 
     func refreshData(with session: SupabaseAuthSession) async {
         activeSession = session
+        currentUserID = session.userID
         do {
             let remoteHouseholds = try await supabaseClient.fetchHouseholds(accessToken: session.accessToken)
             let mappedHouseholds = remoteHouseholds.map { Household(id: $0.id, name: $0.name) }
@@ -307,25 +337,18 @@ final class KorbiSettings: ObservableObject {
                 )
                 await MainActor.run {
                     profileName = trimmed
+                    currentUserID = session.userID
                     var members = householdMembers[householdID] ?? []
-                    let memberID = "\(householdID.uuidString)-\(session.userID.uuidString)"
-                    if let index = members.firstIndex(where: { $0.id == memberID }) {
-                        members[index] = HouseholdMemberProfile(
-                            id: members[index].id,
-                            name: trimmed,
-                            role: members[index].role,
-                            status: members[index].status
-                        )
-                    } else {
-                        members.append(
-                            HouseholdMemberProfile(
-                                id: memberID,
-                                name: trimmed,
-                                role: nil,
-                                status: nil
-                            )
-                        )
-                    }
+                    syncMemberProfile(
+                        for: session.userID,
+                        householdID: householdID,
+                        name: trimmed,
+                        role: nil,
+                        status: nil,
+                        email: session.email,
+                        avatarData: profileImageData,
+                        existingMembers: &members
+                    )
                     householdMembers[householdID] = members
                 }
             } catch {
@@ -464,6 +487,30 @@ final class KorbiSettings: ObservableObject {
         }
     }
 
+    func removeMember(_ member: HouseholdMemberProfile, from household: Household) async {
+        guard role(for: household.id) == "owner" else { return }
+
+        do {
+            guard let authManager else { return }
+            let session = try await authManager.getValidSession()
+            activeSession = session
+            try await supabaseClient.removeMember(
+                householdID: household.id,
+                userID: member.userID,
+                accessToken: session.accessToken
+            )
+            await MainActor.run {
+                var members = householdMembers[household.id] ?? []
+                members.removeAll { $0.id == member.id }
+                householdMembers[household.id] = members
+            }
+        } catch {
+            #if DEBUG
+            print("Failed to remove member: \(error)")
+            #endif
+        }
+    }
+
     var currentHousehold: Household? {
         guard !households.isEmpty else { return nil }
         if let selectedHouseholdID,
@@ -551,15 +598,20 @@ final class KorbiSettings: ObservableObject {
             let mapped = members.map { member in
                 HouseholdMemberProfile(
                     id: member.id,
-                    name: member.name ?? "Mitglied",
+                    userID: member.userID,
+                    name: member.name ?? member.email ?? "Mitglied",
                     role: member.role,
-                    status: member.status
+                    status: member.status,
+                    email: member.email,
+                    avatarData: member.userID == session.userID ? profileImageData : nil
                 )
             }
             await MainActor.run {
                 householdMembers[householdID] = mapped
                 if let currentMember = members.first(where: { $0.userID == session.userID }) {
-                    profileName = currentMember.name ?? profileName
+                    currentUserID = session.userID
+                    let fallbackName = profileName.isEmpty ? session.email : profileName
+                    profileName = currentMember.name ?? fallbackName
                 }
             }
         } catch {
@@ -567,6 +619,10 @@ final class KorbiSettings: ObservableObject {
             print("Failed to fetch household members: \(error)")
             #endif
         }
+    }
+
+    func updateProfileImage(with data: Data?) {
+        profileImageData = data
     }
 
     private func updateItems(for householdID: UUID, session: SupabaseAuthSession) async {
@@ -638,6 +694,61 @@ final class KorbiSettings: ObservableObject {
             #if DEBUG
             print("Failed to send member joined notification: \(error)")
             #endif
+        }
+    }
+
+    private func propagateProfileImage() {
+        guard let userID = currentUserID else { return }
+        householdMembers.keys.forEach { householdID in
+            var members = householdMembers[householdID] ?? []
+            syncMemberProfile(
+                for: userID,
+                householdID: householdID,
+                name: nil,
+                role: nil,
+                status: nil,
+                email: nil,
+                avatarData: profileImageData,
+                existingMembers: &members
+            )
+            householdMembers[householdID] = members
+        }
+    }
+
+    private func syncMemberProfile(
+        for userID: UUID,
+        householdID: UUID,
+        name: String?,
+        role: String?,
+        status: String?,
+        email: String?,
+        avatarData: Data?,
+        existingMembers: inout [HouseholdMemberProfile]
+    ) {
+        let memberID = "\(householdID.uuidString)-\(userID.uuidString)"
+        if let index = existingMembers.firstIndex(where: { $0.id == memberID }) {
+            let existing = existingMembers[index]
+            existingMembers[index] = HouseholdMemberProfile(
+                id: existing.id,
+                userID: userID,
+                name: name ?? existing.name,
+                role: role ?? existing.role,
+                status: status ?? existing.status,
+                email: email ?? existing.email,
+                avatarData: avatarData ?? existing.avatarData
+            )
+        } else {
+            existingMembers.append(
+                HouseholdMemberProfile(
+                    id: memberID,
+                    userID: userID,
+                    name: name ?? "Mitglied",
+                    role: role,
+                    status: status,
+                    email: email,
+                    avatarData: avatarData
+                )
+            )
         }
     }
 }
