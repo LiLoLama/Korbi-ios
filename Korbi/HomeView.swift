@@ -3,7 +3,6 @@ import SwiftUI
 struct HomeView: View {
     @EnvironmentObject private var settings: KorbiSettings
     @EnvironmentObject private var authManager: AuthManager
-    @State private var showRecentPurchases = false
     @State private var purchasedItems: Set<UUID> = []
     @State private var pendingCompletionItemID: UUID?
     @State private var isRefreshing = false
@@ -17,9 +16,6 @@ struct HomeView: View {
 
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 28) {
-                        if !settings.recentPurchases.isEmpty {
-                            recentPurchasesButton
-                        }
                         todaysItems
                     }
                     .padding(.horizontal, 24)
@@ -44,45 +40,6 @@ struct HomeView: View {
             .navigationBarTitleDisplayMode(.large)
         }
         .accentColor(settings.palette.primary)
-        .sheet(isPresented: $showRecentPurchases) {
-            NavigationStack {
-                List {
-                    if settings.recentPurchases.isEmpty {
-                        Text("Keine Einkäufe vorhanden.")
-                            .font(KorbiTheme.Typography.body())
-                            .foregroundStyle(settings.palette.textSecondary)
-                    } else {
-                        ForEach(Array(settings.recentPurchases.prefix(10)), id: \.self) { item in
-                            Label(item, systemImage: "checkmark.circle")
-                                .foregroundStyle(settings.palette.primary)
-                        }
-                    }
-                }
-                .scrollContentBackground(.hidden)
-                .background(settings.palette.background)
-                .navigationTitle("Kürzlich gekauft")
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Fertig") { showRecentPurchases = false }
-                            .foregroundStyle(settings.palette.primary)
-                    }
-                }
-            }
-            .environmentObject(settings)
-        }
-    }
-
-    private var recentPurchasesButton: some View {
-        Button(action: { showRecentPurchases = true }) {
-            Label("Kürzlich gekauft", systemImage: "clock.arrow.circlepath")
-                .font(KorbiTheme.Typography.body(weight: .semibold))
-                .padding(.vertical, 16)
-                .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.borderedProminent)
-        .tint(settings.palette.primary.opacity(0.9))
-        .controlSize(.large)
-        .clipShape(RoundedRectangle(cornerRadius: KorbiTheme.Metrics.compactCornerRadius, style: .continuous))
     }
 
     private var todaysItems: some View {

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct HouseholdView: View {
     @EnvironmentObject private var settings: KorbiSettings
@@ -8,6 +9,7 @@ struct HouseholdView: View {
     @State private var isPresentingRoutineCreator = false
     @State private var newRoutineName = ""
     @State private var isPresentingHouseholdSwitcher = false
+    @State private var selectedMember: HouseholdMemberProfile?
 
     var body: some View {
         NavigationStack {
@@ -40,6 +42,16 @@ struct HouseholdView: View {
                 onDismiss: { isPresentingHouseholdSwitcher = false }
             )
             .environmentObject(settings)
+        }
+        .sheet(item: $selectedMember) { member in
+            if let household = settings.currentHousehold {
+                MemberDetailSheet(
+                    member: member,
+                    household: household,
+                    onDismiss: { selectedMember = nil }
+                )
+                .environmentObject(settings)
+            }
         }
     }
 
@@ -83,14 +95,7 @@ struct HouseholdView: View {
                     ForEach(members) { member in
                         KorbiCard {
                             HStack(spacing: 16) {
-                                Image(systemName: "person.crop.circle")
-                                    .font(.system(size: 32))
-                                    .foregroundStyle(settings.palette.primary)
-                                    .frame(width: 56, height: 56)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: KorbiTheme.Metrics.compactCornerRadius, style: .continuous)
-                                            .fill(settings.palette.primary.opacity(0.14))
-                                    )
+                                MemberAvatarView(imageData: member.avatarData, name: member.name, palette: settings.palette)
                                 VStack(alignment: .leading, spacing: 6) {
                                     Text(member.name)
                                         .font(KorbiTheme.Typography.body(weight: .semibold))
@@ -106,6 +111,10 @@ struct HouseholdView: View {
                                 Spacer()
                                 Image(systemName: "chevron.right")
                                     .foregroundStyle(settings.palette.primary.opacity(0.7))
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                selectedMember = member
                             }
                         }
                     }
@@ -158,6 +167,101 @@ struct HouseholdView: View {
                     .clipShape(RoundedRectangle(cornerRadius: KorbiTheme.Metrics.compactCornerRadius, style: .continuous))
                 }
             }
+        }
+    }
+}
+
+private struct MemberAvatarView: View {
+    let imageData: Data?
+    let name: String
+    let palette: KorbiColorPalette
+
+    var body: some View {
+        Group {
+            if let imageData, let uiImage = UIImage(data: imageData) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Text(String(name.prefix(1)).uppercased())
+                    .font(KorbiTheme.Typography.title())
+                    .foregroundStyle(palette.primary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .frame(width: 56, height: 56)
+        .background(
+            RoundedRectangle(cornerRadius: KorbiTheme.Metrics.compactCornerRadius, style: .continuous)
+                .fill(palette.primary.opacity(0.14))
+        )
+        .clipShape(RoundedRectangle(cornerRadius: KorbiTheme.Metrics.compactCornerRadius, style: .continuous))
+    }
+}
+
+private struct MemberDetailSheet: View {
+    @EnvironmentObject private var settings: KorbiSettings
+    let member: HouseholdMemberProfile
+    let household: Household
+    let onDismiss: () -> Void
+
+    private var canRemove: Bool {
+        settings.role(for: household.id) == "owner" && member.userID != settings.currentUserID
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 24) {
+                MemberAvatarView(imageData: member.avatarData, name: member.name, palette: settings.palette)
+                    .frame(width: 120, height: 120)
+                    .padding(.top, 24)
+
+                VStack(spacing: 8) {
+                    Text(member.name)
+                        .font(KorbiTheme.Typography.title())
+                        .foregroundStyle(settings.palette.textPrimary)
+
+                    if let email = member.email, !email.isEmpty {
+                        Text(email)
+                            .font(KorbiTheme.Typography.body())
+                            .foregroundStyle(settings.palette.textSecondary)
+                    }
+
+                    if let role = member.role {
+                        Text(role.capitalized)
+                            .font(KorbiTheme.Typography.body(weight: .semibold))
+                            .foregroundStyle(settings.palette.primary)
+                    }
+                }
+
+                Spacer()
+
+                if canRemove {
+                    Button(role: .destructive) {
+                        Task {
+                            await settings.removeMember(member, from: household)
+                            await MainActor.run { onDismiss() }
+                        }
+                    } label: {
+                        Label("Aus Haushalt entfernen", systemImage: "person.crop.circle.badge.xmark")
+                            .font(KorbiTheme.Typography.body(weight: .semibold))
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.red)
+                    .controlSize(.large)
+                    .clipShape(RoundedRectangle(cornerRadius: KorbiTheme.Metrics.compactCornerRadius, style: .continuous))
+                    .padding(.bottom, 24)
+                }
+            }
+            .padding(.horizontal, 24)
+            .navigationTitle("Mitglied")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Schließen", action: onDismiss)
+                }
+            }
+            .background(KorbiBackground())
         }
     }
 }
