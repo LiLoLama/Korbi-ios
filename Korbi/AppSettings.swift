@@ -133,21 +133,26 @@ final class KorbiSettings: ObservableObject {
         bundle: Bundle = .main,
         userDefaults: UserDefaults = .standard
     ) {
+        let storedTheme = userDefaults.object(forKey: StorageKey.warmLightMode) as? Bool
+        let resolvedWarmLightMode = storedTheme ?? useWarmLightMode
+        let resolvedPalette: KorbiColorPalette = resolvedWarmLightMode ? .warmLight : .serene
+        let resolvedWebhookURL = voiceRecordingWebhookURL ?? KorbiSettings.resolveVoiceRecordingWebhook(from: bundle)
+
         self.households = households
         self.selectedHouseholdID = selectedHouseholdID
         self.userDefaults = userDefaults
-        let storedTheme = userDefaults.object(forKey: StorageKey.warmLightMode) as? Bool
-        self.useWarmLightMode = storedTheme ?? useWarmLightMode
+        self.useWarmLightMode = resolvedWarmLightMode
         self.recentPurchases = recentPurchases
-        self.palette = self.useWarmLightMode ? .warmLight : .serene
-        self.voiceRecordingWebhookURL = voiceRecordingWebhookURL ?? KorbiSettings.resolveVoiceRecordingWebhook(from: bundle)
-        self.supabaseClient = supabaseClient
+        self.palette = resolvedPalette
         self.householdMembers = [:]
         self.householdItems = [:]
         self.householdInvites = [:]
         self.householdRoles = [:]
         self.profileName = ""
         self.profileImageData = userDefaults.data(forKey: StorageKey.profileImage)
+        self.currentUserID = nil
+        self.voiceRecordingWebhookURL = resolvedWebhookURL
+        self.supabaseClient = supabaseClient
 
         ensureValidSelection()
     }
