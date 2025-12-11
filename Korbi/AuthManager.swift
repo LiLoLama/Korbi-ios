@@ -228,8 +228,14 @@ final class AuthManager: ObservableObject {
             self.currentUserEmail = newSession.email
             scheduleRefresh(for: newSession)
 
+        } catch let error as SupabaseError {
+            if case let .requestFailed(statusCode, _) = error, statusCode == 401 {
+                logout()
+                throw AuthError.invalidCredentials
+            }
+
+            throw error
         } catch {
-            logout()
             throw error
         }
     }
