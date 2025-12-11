@@ -28,13 +28,13 @@ struct ContentView: View {
             await settings.refreshActiveSession()
             inviteCoordinator.attemptProcessingIfPossible()
         }
-        .onChange(of: scenePhase) { newPhase in
+        .onChange(of: scenePhase) { _, newPhase in
             guard newPhase == .active, authManager.isAuthenticated else { return }
             Task {
                 await settings.refreshActiveSession()
             }
         }
-        .onChange(of: authManager.isAuthenticated) { isAuthenticated in
+        .onChange(of: authManager.isAuthenticated) { _, isAuthenticated in
             guard isAuthenticated else { return }
             inviteCoordinator.attemptProcessingIfPossible()
         }
