@@ -38,16 +38,17 @@ struct HomeView: View {
                         pendingCompletionItemID = nil
                     }
                 }
-                .overlay(alignment: .bottomTrailing) {
-                    manualEntryToggleButton
-                        .padding(.trailing, 24)
-                        .padding(.bottom, 32)
-                }
                 .safeAreaInset(edge: .bottom) {
-                    FloatingMicButton()
-                        .padding(.top, 16)
-                        .padding(.bottom, 24)
-                        .frame(maxWidth: .infinity, alignment: .center)
+                    ZStack(alignment: .bottomTrailing) {
+                        FloatingMicButton()
+                            .padding(.top, 16)
+                            .padding(.bottom, 24)
+                            .frame(maxWidth: .infinity, alignment: .center)
+
+                        manualEntryToggleButton
+                            .padding(.trailing, 18)
+                            .padding(.bottom, 10)
+                    }
                 }
             }
             .toolbarBackground(.visible, for: .navigationBar)
