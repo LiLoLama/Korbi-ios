@@ -6,6 +6,12 @@ struct HomeView: View {
     @State private var purchasedItems: Set<UUID> = []
     @State private var pendingCompletionItemID: UUID?
     @State private var isRefreshing = false
+    @State private var newItemName = ""
+    @State private var newItemDescription = ""
+    @State private var newItemQuantity = ""
+    @State private var newItemCategory = ""
+    @State private var isSubmittingItem = false
+    @State private var itemErrorMessage: String?
 
     var body: some View {
         NavigationStack {
@@ -16,6 +22,7 @@ struct HomeView: View {
 
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 28) {
+                        manualEntryCard
                         todaysItems
                     }
                     .padding(.horizontal, 24)
@@ -40,6 +47,123 @@ struct HomeView: View {
             .navigationBarTitleDisplayMode(.large)
         }
         .accentColor(settings.palette.primary)
+    }
+
+    private var manualEntryCard: some View {
+        KorbiCard {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Artikel manuell hinzufügen")
+                    .font(KorbiTheme.Typography.title(weight: .semibold))
+                    .foregroundStyle(settings.palette.textPrimary)
+
+                VStack(spacing: 10) {
+                    TextField("Name", text: $newItemName)
+                        .textInputAutocapitalization(.sentences)
+                        .autocorrectionDisabled(false)
+                        .padding(12)
+                        .background(RoundedRectangle(cornerRadius: 12).fill(settings.palette.card.opacity(0.8)))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(settings.palette.outline.opacity(0.7), lineWidth: 1)
+                        )
+
+                    TextField("Beschreibung", text: $newItemDescription, axis: .vertical)
+                        .textInputAutocapitalization(.sentences)
+                        .autocorrectionDisabled(false)
+                        .padding(12)
+                        .background(RoundedRectangle(cornerRadius: 12).fill(settings.palette.card.opacity(0.8)))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(settings.palette.outline.opacity(0.7), lineWidth: 1)
+                        )
+
+                    HStack(spacing: 12) {
+                        TextField("Menge", text: $newItemQuantity)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled(true)
+                            .padding(12)
+                            .background(RoundedRectangle(cornerRadius: 12).fill(settings.palette.card.opacity(0.8)))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(settings.palette.outline.opacity(0.7), lineWidth: 1)
+                            )
+
+                        TextField("Kategorie", text: $newItemCategory)
+                            .textInputAutocapitalization(.words)
+                            .autocorrectionDisabled(false)
+                            .padding(12)
+                            .background(RoundedRectangle(cornerRadius: 12).fill(settings.palette.card.opacity(0.8)))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(settings.palette.outline.opacity(0.7), lineWidth: 1)
+                            )
+                    }
+                }
+
+                if let errorMessage = itemErrorMessage {
+                    Text(errorMessage)
+                        .font(KorbiTheme.Typography.caption())
+                        .foregroundStyle(Color.red)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                Button(action: submitManualItem) {
+                    HStack {
+                        if isSubmittingItem {
+                            ProgressView()
+                                .tint(.white)
+                        }
+                        Text("Speichern")
+                            .font(KorbiTheme.Typography.body(weight: .semibold))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(settings.palette.primary)
+                .disabled(isSubmittingItem || newItemName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+    }
+
+    private func submitManualItem() {
+        guard !isSubmittingItem else { return }
+
+        let trimmedName = newItemName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            itemErrorMessage = ItemCreationError.invalidName.errorDescription
+            return
+        }
+
+        itemErrorMessage = nil
+        isSubmittingItem = true
+
+        Task {
+            do {
+                try await settings.addItem(
+                    name: trimmedName,
+                    description: newItemDescription,
+                    quantity: newItemQuantity,
+                    category: newItemCategory
+                )
+
+                await MainActor.run {
+                    newItemName = ""
+                    newItemDescription = ""
+                    newItemQuantity = ""
+                    newItemCategory = ""
+                }
+            } catch {
+                let localizedError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                await MainActor.run {
+                    itemErrorMessage = localizedError
+                }
+            }
+
+            await MainActor.run {
+                isSubmittingItem = false
+            }
+        }
     }
 
     private var todaysItems: some View {

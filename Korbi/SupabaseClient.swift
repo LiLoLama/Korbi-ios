@@ -46,6 +46,14 @@ protocol SupabaseService {
         accessToken: String
     ) async throws
     func fetchItems(accessToken: String, householdID: UUID?) async throws -> [SupabaseItem]
+    func createItem(
+        name: String,
+        description: String?,
+        quantity: String?,
+        category: String?,
+        householdID: UUID,
+        accessToken: String
+    ) async throws -> SupabaseItem
     func deleteItem(id: UUID, accessToken: String) async throws
     func sendHouseholdNotification(message: String, householdID: UUID, accessToken: String) async throws
     func createInvite(
@@ -323,6 +331,38 @@ final class SupabaseClient: SupabaseService {
             accessToken: accessToken
         )
         return try await performDecodingRequest(request)
+    }
+
+    func createItem(
+        name: String,
+        description: String?,
+        quantity: String?,
+        category: String?,
+        householdID: UUID,
+        accessToken: String
+    ) async throws -> SupabaseItem {
+        var request = try dataRequest(
+            path: "rest/v1/items",
+            method: "POST",
+            accessToken: accessToken
+        )
+        request.addValue("return=representation", forHTTPHeaderField: "Prefer")
+
+        let payload = SupabaseItemCreation(
+            householdID: householdID,
+            name: name,
+            description: description,
+            quantity: quantity,
+            category: category
+        )
+
+        request.httpBody = try encoder.encode([payload])
+
+        let response = try await performDecodingRequest(request) as [SupabaseItem]
+        guard let createdItem = response.first else {
+            throw SupabaseError.invalidResponse
+        }
+        return createdItem
     }
 
     func deleteItem(id: UUID, accessToken: String) async throws {
@@ -799,6 +839,22 @@ struct SupabaseItem: Codable, Identifiable, Equatable {
 
     enum CodingKeys: String, CodingKey {
         case id
+        case householdID = "household_id"
+        case name
+        case description
+        case quantity
+        case category
+    }
+}
+
+private struct SupabaseItemCreation: Encodable {
+    let householdID: UUID
+    let name: String
+    let description: String?
+    let quantity: String?
+    let category: String?
+
+    enum CodingKeys: String, CodingKey {
         case householdID = "household_id"
         case name
         case description
