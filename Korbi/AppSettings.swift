@@ -1,5 +1,6 @@
 import SwiftUI
 import Foundation
+import UIKit
 
 struct KorbiColorPalette {
     let primary: Color
@@ -90,7 +91,6 @@ enum InviteError: LocalizedError {
 final class KorbiSettings: ObservableObject {
     private enum StorageKey {
         static let warmLightMode = "korbi.useWarmLightMode"
-        static let profileImage = "korbi.profileImage.data"
     }
 
     @Published private(set) var households: [Household]
@@ -110,7 +110,6 @@ final class KorbiSettings: ObservableObject {
     @Published private(set) var profileName: String
     @Published private(set) var profileImageData: Data? {
         didSet {
-            userDefaults.set(profileImageData, forKey: StorageKey.profileImage)
             propagateProfileImage()
         }
     }
@@ -149,7 +148,7 @@ final class KorbiSettings: ObservableObject {
         self.householdInvites = [:]
         self.householdRoles = [:]
         self.profileName = ""
-        self.profileImageData = userDefaults.data(forKey: StorageKey.profileImage)
+        self.profileImageData = nil
         self.currentUserID = nil
         self.voiceRecordingWebhookURL = resolvedWebhookURL
         self.supabaseClient = supabaseClient
@@ -595,15 +594,16 @@ final class KorbiSettings: ObservableObject {
     private func updateMembersAndProfile(for householdID: UUID, session: SupabaseAuthSession) async {
         do {
             let members = try await supabaseClient.fetchHouseholdMembers(householdID: householdID, accessToken: session.accessToken)
-            let mapped = members.map { member in
-                HouseholdMemberProfile(
+            let mapped: [HouseholdMemberProfile] = members.map { member in
+                let avatarData = member.profileImageData
+                return HouseholdMemberProfile(
                     id: member.id,
                     userID: member.userID,
                     name: member.name ?? member.email ?? "Mitglied",
                     role: member.role,
                     status: member.status,
                     email: member.email,
-                    avatarData: member.userID == session.userID ? profileImageData : nil
+                    avatarData: avatarData
                 )
             }
             await MainActor.run {
@@ -612,6 +612,9 @@ final class KorbiSettings: ObservableObject {
                     currentUserID = session.userID
                     let fallbackName = profileName.isEmpty ? session.email : profileName
                     profileName = currentMember.name ?? fallbackName
+                    if let avatarData = currentMember.profileImageData {
+                        profileImageData = avatarData
+                    }
                 }
             }
         } catch {
@@ -621,8 +624,66 @@ final class KorbiSettings: ObservableObject {
         }
     }
 
+    private func compressProfileImageData(_ data: Data?) -> Data? {
+        guard let data,
+              let image = UIImage(data: data) else { return data }
+
+        let maxDimension: CGFloat = 1024
+        let longestSide = max(image.size.width, image.size.height)
+        let scale = longestSide > maxDimension ? maxDimension / longestSide : 1
+        let targetSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+
+        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        let scaledImage = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: targetSize))
+        }
+
+        return scaledImage.jpegData(compressionQuality: 0.7)
+    }
+
     func updateProfileImage(with data: Data?) {
-        profileImageData = data
+        let compressedData = compressProfileImageData(data)
+
+        guard let householdID = selectedHouseholdID else {
+            profileImageData = compressedData
+            return
+        }
+
+        Task {
+            do {
+                guard let authManager else { return }
+                let session = try await authManager.getValidSession()
+                activeSession = session
+                let base64Image = compressedData?.base64EncodedString()
+                try await supabaseClient.updateHouseholdMemberProfileImage(
+                    userID: session.userID,
+                    householdID: householdID,
+                    profileImageBase64: base64Image,
+                    accessToken: session.accessToken
+                )
+
+                await MainActor.run {
+                    profileImageData = compressedData
+                    currentUserID = session.userID
+                    var members = householdMembers[householdID] ?? []
+                    syncMemberProfile(
+                        for: session.userID,
+                        householdID: householdID,
+                        name: nil,
+                        role: nil,
+                        status: nil,
+                        email: session.email,
+                        avatarData: compressedData,
+                        existingMembers: &members
+                    )
+                    householdMembers[householdID] = members
+                }
+            } catch {
+                #if DEBUG
+                print("Failed to update profile image: \(error)")
+                #endif
+            }
+        }
     }
 
     private func updateItems(for householdID: UUID, session: SupabaseAuthSession) async {
