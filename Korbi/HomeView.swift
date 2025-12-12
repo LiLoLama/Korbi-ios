@@ -12,6 +12,7 @@ struct HomeView: View {
     @State private var newItemCategory = ""
     @State private var isSubmittingItem = false
     @State private var itemErrorMessage: String?
+    @State private var isManualEntryVisible = false
 
     var body: some View {
         NavigationStack {
@@ -22,7 +23,10 @@ struct HomeView: View {
 
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 28) {
-                        manualEntryCard
+                        if isManualEntryVisible {
+                            manualEntryCard
+                                .transition(.move(edge: .top).combined(with: .opacity))
+                        }
                         todaysItems
                     }
                     .padding(.horizontal, 24)
@@ -33,6 +37,11 @@ struct HomeView: View {
                     if !items.contains(where: { $0.id == pendingID }) {
                         pendingCompletionItemID = nil
                     }
+                }
+                .overlay(alignment: .bottomTrailing) {
+                    manualEntryToggleButton
+                        .padding(.trailing, 24)
+                        .padding(.bottom, 32)
                 }
                 .safeAreaInset(edge: .bottom) {
                     FloatingMicButton()
@@ -47,6 +56,26 @@ struct HomeView: View {
             .navigationBarTitleDisplayMode(.large)
         }
         .accentColor(settings.palette.primary)
+    }
+
+    private var manualEntryToggleButton: some View {
+        Button {
+            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                isManualEntryVisible.toggle()
+            }
+        } label: {
+            Image(systemName: isManualEntryVisible ? "xmark" : "square.and.pencil")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 60, height: 60)
+                .background(
+                    Circle()
+                        .fill(settings.palette.primary)
+                        .shadow(color: settings.palette.primary.opacity(0.3), radius: 8, x: 0, y: 6)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(isManualEntryVisible ? "Eingabe schließen" : "Artikel manuell hinzufügen")
     }
 
     private var manualEntryCard: some View {
