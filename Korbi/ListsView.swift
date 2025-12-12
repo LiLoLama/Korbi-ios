@@ -1,35 +1,20 @@
 import SwiftUI
 
-enum ListColorRole {
-    case primary
-    case accent
-    case pantry
-}
-
 struct ShoppingListSummary: Identifiable {
     let id = UUID()
-    let title: String
-    let colorRole: ListColorRole
-    let icon: String
+    let category: ItemCategory
+
+    var title: String { category.rawValue }
+    var colorRole: ListColorRole { category.colorRole }
+    var icon: String { category.icon }
 }
 
 struct ListsView: View {
     @EnvironmentObject private var settings: KorbiSettings
     @EnvironmentObject private var authManager: AuthManager
-    private let lists: [ShoppingListSummary] = [
-        .init(title: "Obst & Gemüse", colorRole: .primary, icon: "leaf.fill"),
-        .init(title: "Backwaren & Frühstück", colorRole: .accent, icon: "bag.fill"),
-        .init(title: "Milch & Kühlware", colorRole: .primary, icon: "drop.fill"),
-        .init(title: "Vorrat & Konserven", colorRole: .pantry, icon: "shippingbox.fill"),
-        .init(title: "Süßes & Snacks", colorRole: .accent, icon: "heart.fill"),
-        .init(title: "Getränke", colorRole: .primary, icon: "wineglass.fill"),
-        .init(title: "Tiefkühl", colorRole: .pantry, icon: "snowflake"),
-        .init(title: "Drogerie & Körperpflege", colorRole: .accent, icon: "hand.raised.fill"),
-        .init(title: "Haushalt & Reinigung", colorRole: .pantry, icon: "house.fill"),
-        .init(title: "Tierbedarf", colorRole: .primary, icon: "pawprint.fill"),
-        .init(title: "Baby & Kind", colorRole: .accent, icon: "person.2.fill"),
-        .init(title: "Sonstiges", colorRole: .primary, icon: "ellipsis.circle")
-    ]
+    private let lists: [ShoppingListSummary] = ItemCategory.allCases.map { category in
+        ShoppingListSummary(category: category)
+    }
 
     var body: some View {
         NavigationStack {

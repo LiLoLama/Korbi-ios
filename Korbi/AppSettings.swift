@@ -87,6 +87,23 @@ enum InviteError: LocalizedError {
     }
 }
 
+enum ItemCreationError: LocalizedError {
+    case missingHousehold
+    case notAuthenticated
+    case invalidName
+
+    var errorDescription: String? {
+        switch self {
+        case .missingHousehold:
+            return "Kein Haushalt ausgewählt."
+        case .notAuthenticated:
+            return "Du musst angemeldet sein, um Artikel hinzuzufügen."
+        case .invalidName:
+            return "Bitte gib einen Artikelnamen ein."
+        }
+    }
+}
+
 @MainActor
 final class KorbiSettings: ObservableObject {
     private enum StorageKey {
@@ -208,6 +225,51 @@ final class KorbiSettings: ObservableObject {
             #if DEBUG
             print("Failed to delete item from Supabase: \(error)")
             #endif
+        }
+    }
+
+    func addItem(
+        name: String,
+        description: String,
+        quantity: String,
+        category: String
+    ) async throws {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { throw ItemCreationError.invalidName }
+        guard let householdID = selectedHouseholdID else { throw ItemCreationError.missingHousehold }
+        guard let authManager else { throw ItemCreationError.notAuthenticated }
+
+        let sanitizedDescription = description.trimmingCharacters(in: .whitespacesAndNewlines)
+        let sanitizedQuantity = quantity.trimmingCharacters(in: .whitespacesAndNewlines)
+        let sanitizedCategory = category.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        do {
+            let session = try await authManager.getValidSession()
+            activeSession = session
+            let newItem = try await supabaseClient.createItem(
+                name: trimmedName,
+                description: sanitizedDescription.isEmpty ? nil : sanitizedDescription,
+                quantity: sanitizedQuantity.isEmpty ? nil : sanitizedQuantity,
+                category: sanitizedCategory.isEmpty ? nil : sanitizedCategory,
+                householdID: householdID,
+                accessToken: session.accessToken
+            )
+
+            let mappedItem = HouseholdItem(
+                id: newItem.id,
+                name: newItem.name,
+                description: newItem.description ?? "",
+                quantity: newItem.quantity ?? "",
+                category: newItem.category ?? "Sonstiges"
+            )
+
+            await MainActor.run {
+                var items = householdItems[householdID] ?? []
+                items.insert(mappedItem, at: 0)
+                householdItems[householdID] = items
+            }
+        } catch {
+            throw error
         }
     }
 

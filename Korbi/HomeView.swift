@@ -6,6 +6,13 @@ struct HomeView: View {
     @State private var purchasedItems: Set<UUID> = []
     @State private var pendingCompletionItemID: UUID?
     @State private var isRefreshing = false
+    @State private var newItemName = ""
+    @State private var newItemDescription = ""
+    @State private var newItemQuantity = ""
+    @State private var newItemCategory = ""
+    @State private var isSubmittingItem = false
+    @State private var itemErrorMessage: String?
+    @State private var isManualEntryVisible = false
 
     var body: some View {
         NavigationStack {
@@ -16,6 +23,10 @@ struct HomeView: View {
 
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 28) {
+                        if isManualEntryVisible {
+                            manualEntryCard
+                                .transition(.move(edge: .top).combined(with: .opacity))
+                        }
                         todaysItems
                     }
                     .padding(.horizontal, 24)
@@ -28,10 +39,16 @@ struct HomeView: View {
                     }
                 }
                 .safeAreaInset(edge: .bottom) {
-                    FloatingMicButton()
-                        .padding(.top, 16)
-                        .padding(.bottom, 24)
-                        .frame(maxWidth: .infinity, alignment: .center)
+                    ZStack(alignment: .bottomTrailing) {
+                        FloatingMicButton()
+                            .padding(.top, 16)
+                            .padding(.bottom, 24)
+                            .frame(maxWidth: .infinity, alignment: .center)
+
+                        manualEntryToggleButton
+                            .padding(.trailing, 18)
+                            .padding(.bottom, 10)
+                    }
                 }
             }
             .toolbarBackground(.visible, for: .navigationBar)
@@ -40,6 +57,192 @@ struct HomeView: View {
             .navigationBarTitleDisplayMode(.large)
         }
         .accentColor(settings.palette.primary)
+    }
+
+    private var manualEntryToggleButton: some View {
+        Button {
+            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                isManualEntryVisible.toggle()
+            }
+        } label: {
+            Image(systemName: isManualEntryVisible ? "xmark" : "square.and.pencil")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 60, height: 60)
+                .background(
+                    Circle()
+                        .fill(settings.palette.primary)
+                        .shadow(color: settings.palette.primary.opacity(0.3), radius: 8, x: 0, y: 6)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(isManualEntryVisible ? "Eingabe schließen" : "Artikel manuell hinzufügen")
+    }
+
+    private var manualEntryCard: some View {
+        KorbiCard {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Artikel manuell hinzufügen")
+                    .font(KorbiTheme.Typography.title(weight: .semibold))
+                    .foregroundStyle(settings.palette.textPrimary)
+
+                VStack(spacing: 10) {
+                    TextField("Name", text: $newItemName)
+                        .textInputAutocapitalization(.sentences)
+                        .autocorrectionDisabled(false)
+                        .padding(12)
+                        .background(RoundedRectangle(cornerRadius: 12).fill(settings.palette.card.opacity(0.8)))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(settings.palette.outline.opacity(0.7), lineWidth: 1)
+                        )
+
+                    TextField("Beschreibung", text: $newItemDescription, axis: .vertical)
+                        .textInputAutocapitalization(.sentences)
+                        .autocorrectionDisabled(false)
+                        .padding(12)
+                        .background(RoundedRectangle(cornerRadius: 12).fill(settings.palette.card.opacity(0.8)))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(settings.palette.outline.opacity(0.7), lineWidth: 1)
+                        )
+
+                    HStack(spacing: 12) {
+                        TextField("Menge", text: $newItemQuantity)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled(true)
+                            .padding(12)
+                            .background(RoundedRectangle(cornerRadius: 12).fill(settings.palette.card.opacity(0.8)))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(settings.palette.outline.opacity(0.7), lineWidth: 1)
+                            )
+
+                        categoryPicker
+                    }
+                }
+
+                if let errorMessage = itemErrorMessage {
+                    Text(errorMessage)
+                        .font(KorbiTheme.Typography.caption())
+                        .foregroundStyle(Color.red)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                Button(action: submitManualItem) {
+                    HStack {
+                        if isSubmittingItem {
+                            ProgressView()
+                                .tint(.white)
+                        }
+                        Text("Speichern")
+                            .font(KorbiTheme.Typography.body(weight: .semibold))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(settings.palette.primary)
+                .disabled(isSubmittingItem || newItemName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+    }
+
+    private var categoryPicker: some View {
+        Menu {
+            ForEach(ItemCategory.allCases) { category in
+                Button {
+                    newItemCategory = category.rawValue
+                } label: {
+                    HStack {
+                        Text(category.rawValue)
+                        if newItemCategory == category.rawValue {
+                            Spacer()
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+            }
+
+            if !newItemCategory.isEmpty {
+                Divider()
+                Button("Keine Kategorie") {
+                    newItemCategory = ""
+                }
+            }
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Kategorie")
+                        .font(KorbiTheme.Typography.caption(weight: .semibold))
+                        .foregroundStyle(settings.palette.textSecondary)
+
+                    Text(newItemCategory.isEmpty ? "Kategorie wählen" : newItemCategory)
+                        .font(KorbiTheme.Typography.body())
+                        .foregroundStyle(
+                            newItemCategory.isEmpty
+                                ? settings.palette.textSecondary.opacity(0.85)
+                                : settings.palette.textPrimary
+                        )
+                        .lineLimit(1)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(settings.palette.primary)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 12).fill(settings.palette.card.opacity(0.8)))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(settings.palette.outline.opacity(0.7), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Kategorie auswählen")
+    }
+
+    private func submitManualItem() {
+        guard !isSubmittingItem else { return }
+
+        let trimmedName = newItemName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            itemErrorMessage = ItemCreationError.invalidName.errorDescription
+            return
+        }
+
+        itemErrorMessage = nil
+        isSubmittingItem = true
+
+        Task {
+            do {
+                try await settings.addItem(
+                    name: trimmedName,
+                    description: newItemDescription,
+                    quantity: newItemQuantity,
+                    category: newItemCategory
+                )
+
+                await MainActor.run {
+                    newItemName = ""
+                    newItemDescription = ""
+                    newItemQuantity = ""
+                    newItemCategory = ""
+                }
+            } catch {
+                let localizedError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                await MainActor.run {
+                    itemErrorMessage = localizedError
+                }
+            }
+
+            await MainActor.run {
+                isSubmittingItem = false
+            }
+        }
     }
 
     private var todaysItems: some View {
