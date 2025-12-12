@@ -596,7 +596,7 @@ final class KorbiSettings: ObservableObject {
             let members = try await supabaseClient.fetchHouseholdMembers(householdID: householdID, accessToken: session.accessToken)
             let mapped: [HouseholdMemberProfile] = members.map { member in
                 let avatarData = member.profileImageData
-                HouseholdMemberProfile(
+                return HouseholdMemberProfile(
                     id: member.id,
                     userID: member.userID,
                     name: member.name ?? member.email ?? "Mitglied",
