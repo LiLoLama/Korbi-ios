@@ -760,7 +760,22 @@ struct SupabaseHouseholdMember: Codable, Identifiable, Equatable {
 
     var profileImageData: Data? {
         guard let profileImg else { return nil }
-        return Data(base64Encoded: profileImg)
+
+        let base64String: String
+        if let commaIndex = profileImg.firstIndex(of: ",") {
+            base64String = String(profileImg[profileImg.index(after: commaIndex)...])
+        } else {
+            base64String = profileImg
+        }
+
+        if let data = Data(base64Encoded: base64String) {
+            return data
+        }
+
+        #if DEBUG
+        print("Failed to decode profile image data from Supabase.")
+        #endif
+        return nil
     }
 }
 
