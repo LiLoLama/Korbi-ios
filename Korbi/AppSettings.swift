@@ -1,5 +1,6 @@
 import SwiftUI
 import Foundation
+import UIKit
 
 struct KorbiColorPalette {
     let primary: Color
@@ -90,7 +91,6 @@ enum InviteError: LocalizedError {
 final class KorbiSettings: ObservableObject {
     private enum StorageKey {
         static let warmLightMode = "korbi.useWarmLightMode"
-        static let profileImage = "korbi.profileImage.data"
     }
 
     @Published private(set) var households: [Household]
@@ -110,7 +110,6 @@ final class KorbiSettings: ObservableObject {
     @Published private(set) var profileName: String
     @Published private(set) var profileImageData: Data? {
         didSet {
-            userDefaults.set(profileImageData, forKey: StorageKey.profileImage)
             propagateProfileImage()
         }
     }
@@ -149,7 +148,7 @@ final class KorbiSettings: ObservableObject {
         self.householdInvites = [:]
         self.householdRoles = [:]
         self.profileName = ""
-        self.profileImageData = userDefaults.data(forKey: StorageKey.profileImage)
+        self.profileImageData = nil
         self.currentUserID = nil
         self.voiceRecordingWebhookURL = resolvedWebhookURL
         self.supabaseClient = supabaseClient
@@ -625,9 +624,28 @@ final class KorbiSettings: ObservableObject {
         }
     }
 
+    private func compressProfileImageData(_ data: Data?) -> Data? {
+        guard let data,
+              let image = UIImage(data: data) else { return data }
+
+        let maxDimension: CGFloat = 1024
+        let longestSide = max(image.size.width, image.size.height)
+        let scale = longestSide > maxDimension ? maxDimension / longestSide : 1
+        let targetSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+
+        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        let scaledImage = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: targetSize))
+        }
+
+        return scaledImage.jpegData(compressionQuality: 0.7)
+    }
+
     func updateProfileImage(with data: Data?) {
+        let compressedData = compressProfileImageData(data)
+
         guard let householdID = selectedHouseholdID else {
-            profileImageData = data
+            profileImageData = compressedData
             return
         }
 
@@ -636,7 +654,7 @@ final class KorbiSettings: ObservableObject {
                 guard let authManager else { return }
                 let session = try await authManager.getValidSession()
                 activeSession = session
-                let base64Image = data?.base64EncodedString()
+                let base64Image = compressedData?.base64EncodedString()
                 try await supabaseClient.updateHouseholdMemberProfileImage(
                     userID: session.userID,
                     householdID: householdID,
@@ -645,7 +663,7 @@ final class KorbiSettings: ObservableObject {
                 )
 
                 await MainActor.run {
-                    profileImageData = data
+                    profileImageData = compressedData
                     currentUserID = session.userID
                     var members = householdMembers[householdID] ?? []
                     syncMemberProfile(
@@ -655,7 +673,7 @@ final class KorbiSettings: ObservableObject {
                         role: nil,
                         status: nil,
                         email: session.email,
-                        avatarData: data,
+                        avatarData: compressedData,
                         existingMembers: &members
                     )
                     householdMembers[householdID] = members
