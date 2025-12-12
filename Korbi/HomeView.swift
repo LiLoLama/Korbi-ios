@@ -118,15 +118,7 @@ struct HomeView: View {
                                     .stroke(settings.palette.outline.opacity(0.7), lineWidth: 1)
                             )
 
-                        TextField("Kategorie", text: $newItemCategory)
-                            .textInputAutocapitalization(.words)
-                            .autocorrectionDisabled(false)
-                            .padding(12)
-                            .background(RoundedRectangle(cornerRadius: 12).fill(settings.palette.card.opacity(0.8)))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(settings.palette.outline.opacity(0.7), lineWidth: 1)
-                            )
+                        categoryPicker
                     }
                 }
 
@@ -154,6 +146,63 @@ struct HomeView: View {
                 .disabled(isSubmittingItem || newItemName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
+    }
+
+    private var categoryPicker: some View {
+        Menu {
+            ForEach(ItemCategory.allCases) { category in
+                Button {
+                    newItemCategory = category.rawValue
+                } label: {
+                    HStack {
+                        Text(category.rawValue)
+                        if newItemCategory == category.rawValue {
+                            Spacer()
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+            }
+
+            if !newItemCategory.isEmpty {
+                Divider()
+                Button("Keine Kategorie") {
+                    newItemCategory = ""
+                }
+            }
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Kategorie")
+                        .font(KorbiTheme.Typography.caption(weight: .semibold))
+                        .foregroundStyle(settings.palette.textSecondary)
+
+                    Text(newItemCategory.isEmpty ? "Kategorie wählen" : newItemCategory)
+                        .font(KorbiTheme.Typography.body())
+                        .foregroundStyle(
+                            newItemCategory.isEmpty
+                                ? settings.palette.textSecondary.opacity(0.85)
+                                : settings.palette.textPrimary
+                        )
+                        .lineLimit(1)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(settings.palette.primary)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 12).fill(settings.palette.card.opacity(0.8)))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(settings.palette.outline.opacity(0.7), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Kategorie auswählen")
     }
 
     private func submitManualItem() {
