@@ -40,15 +40,19 @@ struct HomeView: View {
                 }
                 .safeAreaInset(edge: .bottom) {
                     ZStack(alignment: .bottomTrailing) {
-                        FloatingMicButton()
-                            .padding(.top, 16)
-                            .padding(.bottom, 24)
-                            .frame(maxWidth: .infinity, alignment: .center)
+                        if !isManualEntryVisible {
+                            FloatingMicButton()
+                                .padding(.top, 16)
+                                .padding(.bottom, 24)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .transition(.scale.combined(with: .opacity))
+                        }
 
                         manualEntryToggleButton
                             .padding(.trailing, 18)
                             .padding(.bottom, 10)
                     }
+                    .animation(.spring(response: 0.3, dampingFraction: 0.85), value: isManualEntryVisible)
                 }
             }
             .toolbarBackground(.visible, for: .navigationBar)
@@ -173,17 +177,11 @@ struct HomeView: View {
         } label: {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Kategorie")
+                 
+
+                    Text(newItemCategory.isEmpty ? "Kategorie" : newItemCategory)
                         .font(KorbiTheme.Typography.caption(weight: .semibold))
                         .foregroundStyle(settings.palette.textSecondary)
-
-                    Text(newItemCategory.isEmpty ? "Kategorie wählen" : newItemCategory)
-                        .font(KorbiTheme.Typography.body())
-                        .foregroundStyle(
-                            newItemCategory.isEmpty
-                                ? settings.palette.textSecondary.opacity(0.85)
-                                : settings.palette.textPrimary
-                        )
                         .lineLimit(1)
                 }
 
