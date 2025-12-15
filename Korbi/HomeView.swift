@@ -177,17 +177,11 @@ struct HomeView: View {
         } label: {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Kategorie")
-                        .font(KorbiTheme.Typography.caption(weight: .semibold))
-                        .foregroundStyle(settings.palette.textSecondary)
+                 
 
                     Text(newItemCategory.isEmpty ? "Kategorie" : newItemCategory)
-                        .font(KorbiTheme.Typography.body())
-                        .foregroundStyle(
-                            newItemCategory.isEmpty
-                                ? settings.palette.textSecondary.opacity(0.85)
-                                : settings.palette.textPrimary
-                        )
+                        .font(KorbiTheme.Typography.caption(weight: .semibold))
+                        .foregroundStyle(settings.palette.textSecondary)
                         .lineLimit(1)
                 }
 
