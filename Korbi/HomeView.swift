@@ -181,7 +181,7 @@ struct HomeView: View {
                         .font(KorbiTheme.Typography.caption(weight: .semibold))
                         .foregroundStyle(settings.palette.textSecondary)
 
-                    Text(newItemCategory.isEmpty ? "Kategorie wählen" : newItemCategory)
+                    Text(newItemCategory.isEmpty ? "Kategorie" : newItemCategory)
                         .font(KorbiTheme.Typography.body())
                         .foregroundStyle(
                             newItemCategory.isEmpty
