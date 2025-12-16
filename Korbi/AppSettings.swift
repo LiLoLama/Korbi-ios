@@ -60,6 +60,20 @@ struct HouseholdItem: Identifiable, Equatable {
     let category: String
 }
 
+struct WidgetListItem: Identifiable, Codable, Equatable {
+    let id: UUID
+    let name: String
+    let quantity: String
+    let description: String
+    let category: String
+}
+
+struct WidgetSnapshot: Codable, Equatable {
+    let householdName: String
+    let useWarmLightMode: Bool
+    let items: [WidgetListItem]
+}
+
 struct HouseholdInvite: Identifiable, Equatable {
     let id: UUID
     let token: String
@@ -110,18 +124,26 @@ final class KorbiSettings: ObservableObject {
         static let warmLightMode = "korbi.useWarmLightMode"
     }
 
+    static let appGroupIdentifier = "group.com.example.korbi"
+    static let widgetSnapshotKey = "widgetSnapshot"
+
     @Published private(set) var households: [Household]
-    @Published private(set) var selectedHouseholdID: UUID?
+    @Published private(set) var selectedHouseholdID: UUID? {
+        didSet { persistWidgetSnapshot() }
+    }
     @Published var useWarmLightMode: Bool {
         didSet {
             updatePalette()
             userDefaults.set(useWarmLightMode, forKey: StorageKey.warmLightMode)
+            persistWidgetSnapshot()
         }
     }
     @Published private(set) var recentPurchases: [String]
     @Published private(set) var palette: KorbiColorPalette
     @Published private(set) var householdMembers: [UUID: [HouseholdMemberProfile]]
-    @Published private(set) var householdItems: [UUID: [HouseholdItem]]
+    @Published private(set) var householdItems: [UUID: [HouseholdItem]] {
+        didSet { persistWidgetSnapshot() }
+    }
     @Published private(set) var householdInvites: [UUID: HouseholdInvite]
     @Published private(set) var householdRoles: [UUID: String]
     @Published private(set) var profileName: String
@@ -138,6 +160,7 @@ final class KorbiSettings: ObservableObject {
     private weak var authManager: AuthManager?
     private var activeSession: SupabaseAuthSession?
     private let userDefaults: UserDefaults
+    private let sharedDefaults: UserDefaults?
 
     init(
         households: [Household] = [],
@@ -169,8 +192,10 @@ final class KorbiSettings: ObservableObject {
         self.currentUserID = nil
         self.voiceRecordingWebhookURL = resolvedWebhookURL
         self.supabaseClient = supabaseClient
+        self.sharedDefaults = UserDefaults(suiteName: Self.appGroupIdentifier)
 
         ensureValidSelection()
+        persistWidgetSnapshot()
     }
 
     func configure(authManager: AuthManager) {
@@ -625,6 +650,35 @@ final class KorbiSettings: ObservableObject {
     private func updatePalette() {
         withAnimation(.easeInOut(duration: 0.25)) {
             palette = useWarmLightMode ? .warmLight : .serene
+        }
+    }
+
+    private func persistWidgetSnapshot() {
+        guard let defaults = sharedDefaults else { return }
+
+        let items = currentHouseholdItems.prefix(8).map { item in
+            WidgetListItem(
+                id: item.id,
+                name: item.name,
+                quantity: item.quantity,
+                description: item.description,
+                category: item.category
+            )
+        }
+
+        let snapshot = WidgetSnapshot(
+            householdName: currentHousehold?.name ?? "Einkaufsliste",
+            useWarmLightMode: useWarmLightMode,
+            items: Array(items)
+        )
+
+        do {
+            let data = try JSONEncoder().encode(snapshot)
+            defaults.set(data, forKey: Self.widgetSnapshotKey)
+        } catch {
+            #if DEBUG
+            print("Failed to persist widget snapshot: \(error)")
+            #endif
         }
     }
 
