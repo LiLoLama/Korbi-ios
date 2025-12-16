@@ -28,11 +28,7 @@ struct Provider: TimelineProvider {
     private let placeholderSnapshot = WidgetSnapshot(
         householdName: "Einkaufsliste",
         useWarmLightMode: false,
-        items: [
-            WidgetListItem(id: UUID(), name: "Tomaten", quantity: "4 Stück", description: "", category: "Obst & Gemüse"),
-            WidgetListItem(id: UUID(), name: "Hafermilch", quantity: "2 l", description: "Barista", category: "Milch & Kühlware"),
-            WidgetListItem(id: UUID(), name: "Brot", quantity: "1 Laib", description: "", category: "Backwaren & Frühstück")
-        ]
+        items: []
     )
 
     func placeholder(in context: Context) -> ShoppingListEntry {
@@ -62,6 +58,7 @@ struct Provider: TimelineProvider {
 
 struct KorbiWidgetEntryView: View {
     var entry: ShoppingListEntry
+    @Environment(\.widgetFamily) private var family
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -94,7 +91,7 @@ struct KorbiWidgetEntryView: View {
 
     private var itemsList: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ForEach(entry.snapshot.items.prefix(5)) { item in
+            ForEach(entry.snapshot.items.prefix(maxVisibleItems)) { item in
                 HStack(alignment: .center, spacing: 8) {
                     Image(systemName: iconName(for: item.category))
                         .foregroundStyle(color(for: item))
@@ -102,10 +99,12 @@ struct KorbiWidgetEntryView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(item.name)
                             .font(.subheadline.weight(.semibold))
+                            .lineLimit(1)
                             .foregroundStyle(entry.palette.textPrimary)
                         if !item.quantity.isEmpty {
                             Text(item.quantity)
                                 .font(.caption)
+                                .lineLimit(1)
                                 .foregroundStyle(entry.palette.textSecondary)
                         }
                     }
@@ -181,6 +180,15 @@ struct KorbiWidgetEntryView: View {
             return .pantry
         default:
             return .primary
+        }
+    }
+
+    private var maxVisibleItems: Int {
+        switch family {
+        case .systemSmall:
+            return 3
+        default:
+            return 5
         }
     }
 }
