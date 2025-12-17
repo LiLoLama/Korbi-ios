@@ -14,20 +14,32 @@
 			remoteGlobalIDString = 0C271CC32EAA374200249BB6;
 			remoteInfo = Korbi;
 		};
-		0C271CDE2EAA374300249BB6 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 0C271CBC2EAA374200249BB6 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 0C271CC32EAA374200249BB6;
-			remoteInfo = Korbi;
-		};
+                0C271CDE2EAA374300249BB6 /* PBXContainerItemProxy */ = {
+                        isa = PBXContainerItemProxy;
+                        containerPortal = 0C271CBC2EAA374200249BB6 /* Project object */;
+                        proxyType = 1;
+                        remoteGlobalIDString = 0C271CC32EAA374200249BB6;
+                        remoteInfo = Korbi;
+                };
+                B1E0A12B2F0A1C00A0000001 /* PBXContainerItemProxy */ = {
+                        isa = PBXContainerItemProxy;
+                        containerPortal = 0C271CBC2EAA374200249BB6 /* Project object */;
+                        proxyType = 1;
+                        remoteGlobalIDString = B1E0A1222F0A1C00A0000001;
+                        remoteInfo = KorbiWidgetExtension;
+                };
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		0C271CC42EAA374200249BB6 /* Korbi.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Korbi.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		0C271CD32EAA374300249BB6 /* KorbiTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = KorbiTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		0C271CDD2EAA374300249BB6 /* KorbiUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = KorbiUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+                0C271CC42EAA374200249BB6 /* Korbi.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Korbi.app; sourceTree = BUILT_PRODUCTS_DIR; };
+                0C271CD32EAA374300249BB6 /* KorbiTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = KorbiTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+                0C271CDD2EAA374300249BB6 /* KorbiUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = KorbiUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+                B1E0A1202F0A1C00A0000001 /* KorbiWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = wrapper.app-extension; includeInIndex = 0; path = KorbiWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXBuildFile section */
+                B1E0A12A2F0A1C00A0000001 /* KorbiWidgetExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = B1E0A1202F0A1C00A0000001 /* KorbiWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		0C271CC62EAA374200249BB6 /* Korbi */ = {
@@ -40,11 +52,16 @@
 			path = KorbiTests;
 			sourceTree = "<group>";
 		};
-		0C271CE02EAA374300249BB6 /* KorbiUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = KorbiUITests;
-			sourceTree = "<group>";
-		};
+                0C271CE02EAA374300249BB6 /* KorbiUITests */ = {
+                        isa = PBXFileSystemSynchronizedRootGroup;
+                        path = KorbiUITests;
+                        sourceTree = "<group>";
+                };
+                B1E0A1212F0A1C00A0000001 /* KorbiWidget */ = {
+                        isa = PBXFileSystemSynchronizedRootGroup;
+                        path = KorbiWidget;
+                        sourceTree = "<group>";
+                };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -62,51 +79,62 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		0C271CDA2EAA374300249BB6 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
+                0C271CDA2EAA374300249BB6 /* Frameworks */ = {
+                        isa = PBXFrameworksBuildPhase;
+                        buildActionMask = 2147483647;
+                        files = (
+                        );
+                        runOnlyForDeploymentPostprocessing = 0;
+                };
+                B1E0A1242F0A1C00A0000001 /* Frameworks */ = {
+                        isa = PBXFrameworksBuildPhase;
+                        buildActionMask = 2147483647;
+                        files = (
+                        );
+                        runOnlyForDeploymentPostprocessing = 0;
+                };
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		0C271CBB2EAA374200249BB6 = {
-			isa = PBXGroup;
-			children = (
-				0C271CC62EAA374200249BB6 /* Korbi */,
-				0C271CD62EAA374300249BB6 /* KorbiTests */,
-				0C271CE02EAA374300249BB6 /* KorbiUITests */,
-				0C271CC52EAA374200249BB6 /* Products */,
-			);
-			sourceTree = "<group>";
-		};
-		0C271CC52EAA374200249BB6 /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				0C271CC42EAA374200249BB6 /* Korbi.app */,
-				0C271CD32EAA374300249BB6 /* KorbiTests.xctest */,
-				0C271CDD2EAA374300249BB6 /* KorbiUITests.xctest */,
-			);
-			name = Products;
-			sourceTree = "<group>";
-		};
+                0C271CBB2EAA374200249BB6 = {
+                        isa = PBXGroup;
+                        children = (
+                                0C271CC62EAA374200249BB6 /* Korbi */,
+                                0C271CD62EAA374300249BB6 /* KorbiTests */,
+                                0C271CE02EAA374300249BB6 /* KorbiUITests */,
+                                B1E0A1212F0A1C00A0000001 /* KorbiWidget */,
+                                0C271CC52EAA374200249BB6 /* Products */,
+                        );
+                        sourceTree = "<group>";
+                };
+                0C271CC52EAA374200249BB6 /* Products */ = {
+                        isa = PBXGroup;
+                        children = (
+                                0C271CC42EAA374200249BB6 /* Korbi.app */,
+                                0C271CD32EAA374300249BB6 /* KorbiTests.xctest */,
+                                0C271CDD2EAA374300249BB6 /* KorbiUITests.xctest */,
+                                B1E0A1202F0A1C00A0000001 /* KorbiWidgetExtension.appex */,
+                        );
+                        name = Products;
+                        sourceTree = "<group>";
+                };
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
 		0C271CC32EAA374200249BB6 /* Korbi */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 0C271CE72EAA374300249BB6 /* Build configuration list for PBXNativeTarget "Korbi" */;
-			buildPhases = (
-				0C271CC02EAA374200249BB6 /* Sources */,
-				0C271CC12EAA374200249BB6 /* Frameworks */,
-				0C271CC22EAA374200249BB6 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
+                        buildPhases = (
+                                0C271CC02EAA374200249BB6 /* Sources */,
+                                0C271CC12EAA374200249BB6 /* Frameworks */,
+                                0C271CC22EAA374200249BB6 /* Resources */,
+                                B1E0A1292F0A1C00A0000001 /* Embed App Extensions */,
+                        );
+                        buildRules = (
+                        );
+                        dependencies = (
+                                B1E0A12C2F0A1C00A0000001 /* PBXTargetDependency */,
+                        );
 			fileSystemSynchronizedGroups = (
 				0C271CC62EAA374200249BB6 /* Korbi */,
 			);
@@ -140,11 +168,11 @@
 			productReference = 0C271CD32EAA374300249BB6 /* KorbiTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		0C271CDC2EAA374300249BB6 /* KorbiUITests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 0C271CED2EAA374300249BB6 /* Build configuration list for PBXNativeTarget "KorbiUITests" */;
-			buildPhases = (
-				0C271CD92EAA374300249BB6 /* Sources */,
+                0C271CDC2EAA374300249BB6 /* KorbiUITests */ = {
+                        isa = PBXNativeTarget;
+                        buildConfigurationList = 0C271CED2EAA374300249BB6 /* Build configuration list for PBXNativeTarget "KorbiUITests" */;
+                        buildPhases = (
+                                0C271CD92EAA374300249BB6 /* Sources */,
 				0C271CDA2EAA374300249BB6 /* Frameworks */,
 				0C271CDB2EAA374300249BB6 /* Resources */,
 			);
@@ -159,10 +187,32 @@
 			name = KorbiUITests;
 			packageProductDependencies = (
 			);
-			productName = KorbiUITests;
-			productReference = 0C271CDD2EAA374300249BB6 /* KorbiUITests.xctest */;
-			productType = "com.apple.product-type.bundle.ui-testing";
-		};
+                        productName = KorbiUITests;
+                        productReference = 0C271CDD2EAA374300249BB6 /* KorbiUITests.xctest */;
+                        productType = "com.apple.product-type.bundle.ui-testing";
+                };
+                B1E0A1222F0A1C00A0000001 /* KorbiWidgetExtension */ = {
+                        isa = PBXNativeTarget;
+                        buildConfigurationList = B1E0A1262F0A1C00A0000001 /* Build configuration list for PBXNativeTarget "KorbiWidgetExtension" */;
+                        buildPhases = (
+                                B1E0A1232F0A1C00A0000001 /* Sources */,
+                                B1E0A1242F0A1C00A0000001 /* Frameworks */,
+                                B1E0A1252F0A1C00A0000001 /* Resources */,
+                        );
+                        buildRules = (
+                        );
+                        dependencies = (
+                        );
+                        fileSystemSynchronizedGroups = (
+                                B1E0A1212F0A1C00A0000001 /* KorbiWidget */,
+                        );
+                        name = KorbiWidgetExtension;
+                        packageProductDependencies = (
+                        );
+                        productName = KorbiWidgetExtension;
+                        productReference = B1E0A1202F0A1C00A0000001 /* KorbiWidgetExtension.appex */;
+                        productType = "com.apple.product-type.app-extension";
+                };
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -176,16 +226,19 @@
 					0C271CC32EAA374200249BB6 = {
 						CreatedOnToolsVersion = 16.4;
 					};
-					0C271CD22EAA374300249BB6 = {
-						CreatedOnToolsVersion = 16.4;
-						TestTargetID = 0C271CC32EAA374200249BB6;
-					};
-					0C271CDC2EAA374300249BB6 = {
-						CreatedOnToolsVersion = 16.4;
-						TestTargetID = 0C271CC32EAA374200249BB6;
-					};
-				};
-			};
+                                        0C271CD22EAA374300249BB6 = {
+                                                CreatedOnToolsVersion = 16.4;
+                                                TestTargetID = 0C271CC32EAA374200249BB6;
+                                        };
+                                        0C271CDC2EAA374300249BB6 = {
+                                                CreatedOnToolsVersion = 16.4;
+                                                TestTargetID = 0C271CC32EAA374200249BB6;
+                                        };
+                                        B1E0A1222F0A1C00A0000001 = {
+                                                CreatedOnToolsVersion = 16.4;
+                                        };
+                                };
+                        };
 			buildConfigurationList = 0C271CBF2EAA374200249BB6 /* Build configuration list for PBXProject "Korbi" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -199,12 +252,13 @@
 			productRefGroup = 0C271CC52EAA374200249BB6 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
-			targets = (
-				0C271CC32EAA374200249BB6 /* Korbi */,
-				0C271CD22EAA374300249BB6 /* KorbiTests */,
-				0C271CDC2EAA374300249BB6 /* KorbiUITests */,
-			);
-		};
+                        targets = (
+                                0C271CC32EAA374200249BB6 /* Korbi */,
+                                0C271CD22EAA374300249BB6 /* KorbiTests */,
+                                0C271CDC2EAA374300249BB6 /* KorbiUITests */,
+                                B1E0A1222F0A1C00A0000001 /* KorbiWidgetExtension */,
+                        );
+                };
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
@@ -222,13 +276,20 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		0C271CDB2EAA374300249BB6 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
+                0C271CDB2EAA374300249BB6 /* Resources */ = {
+                        isa = PBXResourcesBuildPhase;
+                        buildActionMask = 2147483647;
+                        files = (
+                        );
+                        runOnlyForDeploymentPostprocessing = 0;
+                };
+                B1E0A1252F0A1C00A0000001 /* Resources */ = {
+                        isa = PBXResourcesBuildPhase;
+                        buildActionMask = 2147483647;
+                        files = (
+                        );
+                        runOnlyForDeploymentPostprocessing = 0;
+                };
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -246,27 +307,53 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		0C271CD92EAA374300249BB6 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
+                0C271CD92EAA374300249BB6 /* Sources */ = {
+                        isa = PBXSourcesBuildPhase;
+                        buildActionMask = 2147483647;
+                        files = (
+                        );
+                        runOnlyForDeploymentPostprocessing = 0;
+                };
+                B1E0A1232F0A1C00A0000001 /* Sources */ = {
+                        isa = PBXSourcesBuildPhase;
+                        buildActionMask = 2147483647;
+                        files = (
+                        );
+                        runOnlyForDeploymentPostprocessing = 0;
+                };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		0C271CD52EAA374300249BB6 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 0C271CC32EAA374200249BB6 /* Korbi */;
-			targetProxy = 0C271CD42EAA374300249BB6 /* PBXContainerItemProxy */;
+                0C271CD52EAA374300249BB6 /* PBXTargetDependency */ = {
+                        isa = PBXTargetDependency;
+                        target = 0C271CC32EAA374200249BB6 /* Korbi */;
+                        targetProxy = 0C271CD42EAA374300249BB6 /* PBXContainerItemProxy */;
 		};
-		0C271CDF2EAA374300249BB6 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 0C271CC32EAA374200249BB6 /* Korbi */;
-			targetProxy = 0C271CDE2EAA374300249BB6 /* PBXContainerItemProxy */;
-		};
+                0C271CDF2EAA374300249BB6 /* PBXTargetDependency */ = {
+                        isa = PBXTargetDependency;
+                        target = 0C271CC32EAA374200249BB6 /* Korbi */;
+                        targetProxy = 0C271CDE2EAA374300249BB6 /* PBXContainerItemProxy */;
+                };
+                B1E0A12C2F0A1C00A0000001 /* PBXTargetDependency */ = {
+                        isa = PBXTargetDependency;
+                        target = B1E0A1222F0A1C00A0000001 /* KorbiWidgetExtension */;
+                        targetProxy = B1E0A12B2F0A1C00A0000001 /* PBXContainerItemProxy */;
+                };
 /* End PBXTargetDependency section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+                B1E0A1292F0A1C00A0000001 /* Embed App Extensions */ = {
+                        isa = PBXCopyFilesBuildPhase;
+                        buildActionMask = 2147483647;
+                        dstPath = "";
+                        dstSubfolderSpec = 13;
+                        files = (
+                                B1E0A12A2F0A1C00A0000001 /* KorbiWidgetExtension.appex in Embed App Extensions */,
+                        );
+                        name = "Embed App Extensions";
+                        runOnlyForDeploymentPostprocessing = 0;
+                };
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
 		0C271CE52EAA374300249BB6 /* Debug */ = {
@@ -495,11 +582,11 @@
 			};
 			name = Debug;
 		};
-		0C271CEF2EAA374300249BB6 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+                0C271CEF2EAA374300249BB6 /* Release */ = {
+                        isa = XCBuildConfiguration;
+                        buildSettings = {
+                                CODE_SIGN_STYLE = Automatic;
+                                CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 7Z2B5728WW;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
@@ -509,9 +596,59 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = Korbi;
-			};
-			name = Release;
-		};
+                        };
+                        name = Release;
+                };
+                B1E0A1272F0A1C00A0000001 /* Debug */ = {
+                        isa = XCBuildConfiguration;
+                        buildSettings = {
+                                ASSETCATALOG_COMPILER_APPICON_NAME = "";
+                                CODE_SIGN_ENTITLEMENTS = KorbiWidget/KorbiWidget.entitlements;
+                                CODE_SIGN_STYLE = Automatic;
+                                CURRENT_PROJECT_VERSION = 1;
+                                DEVELOPMENT_TEAM = 7Z2B5728WW;
+                                GENERATE_INFOPLIST_FILE = NO;
+                                INFOPLIST_FILE = KorbiWidget/Info.plist;
+                                LD_RUNPATH_SEARCH_PATHS = (
+                                        "$(inherited)",
+                                        "@executable_path/Frameworks",
+                                        "@executable_path/../../Frameworks",
+                                );
+                                MARKETING_VERSION = 1.0;
+                                PRODUCT_BUNDLE_IDENTIFIER = liamschmid.Korbi.KorbiWidgetExtension;
+                                PRODUCT_NAME = "$(TARGET_NAME)";
+                                SKIP_INSTALL = YES;
+                                SWIFT_EMIT_LOC_STRINGS = YES;
+                                SWIFT_VERSION = 5.0;
+                                TARGETED_DEVICE_FAMILY = "1,2";
+                        };
+                        name = Debug;
+                };
+                B1E0A1282F0A1C00A0000001 /* Release */ = {
+                        isa = XCBuildConfiguration;
+                        buildSettings = {
+                                ASSETCATALOG_COMPILER_APPICON_NAME = "";
+                                CODE_SIGN_ENTITLEMENTS = KorbiWidget/KorbiWidget.entitlements;
+                                CODE_SIGN_STYLE = Automatic;
+                                CURRENT_PROJECT_VERSION = 1;
+                                DEVELOPMENT_TEAM = 7Z2B5728WW;
+                                GENERATE_INFOPLIST_FILE = NO;
+                                INFOPLIST_FILE = KorbiWidget/Info.plist;
+                                LD_RUNPATH_SEARCH_PATHS = (
+                                        "$(inherited)",
+                                        "@executable_path/Frameworks",
+                                        "@executable_path/../../Frameworks",
+                                );
+                                MARKETING_VERSION = 1.0;
+                                PRODUCT_BUNDLE_IDENTIFIER = liamschmid.Korbi.KorbiWidgetExtension;
+                                PRODUCT_NAME = "$(TARGET_NAME)";
+                                SKIP_INSTALL = YES;
+                                SWIFT_EMIT_LOC_STRINGS = YES;
+                                SWIFT_VERSION = 5.0;
+                                TARGETED_DEVICE_FAMILY = "1,2";
+                        };
+                        name = Release;
+                };
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -542,15 +679,24 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		0C271CED2EAA374300249BB6 /* Build configuration list for PBXNativeTarget "KorbiUITests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				0C271CEE2EAA374300249BB6 /* Debug */,
-				0C271CEF2EAA374300249BB6 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
+                0C271CED2EAA374300249BB6 /* Build configuration list for PBXNativeTarget "KorbiUITests" */ = {
+                        isa = XCConfigurationList;
+                        buildConfigurations = (
+                                0C271CEE2EAA374300249BB6 /* Debug */,
+                                0C271CEF2EAA374300249BB6 /* Release */,
+                        );
+                        defaultConfigurationIsVisible = 0;
+                        defaultConfigurationName = Release;
+                };
+                B1E0A1262F0A1C00A0000001 /* Build configuration list for PBXNativeTarget "KorbiWidgetExtension" */ = {
+                        isa = XCConfigurationList;
+                        buildConfigurations = (
+                                B1E0A1272F0A1C00A0000001 /* Debug */,
+                                B1E0A1282F0A1C00A0000001 /* Release */,
+                        );
+                        defaultConfigurationIsVisible = 0;
+                        defaultConfigurationName = Release;
+                };
 /* End XCConfigurationList section */
 	};
 	rootObject = 0C271CBC2EAA374200249BB6 /* Project object */;
