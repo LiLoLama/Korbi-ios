@@ -108,10 +108,15 @@ enum ItemCreationError: LocalizedError {
 final class KorbiSettings: ObservableObject {
     private enum StorageKey {
         static let warmLightMode = "korbi.useWarmLightMode"
+        static let selectedHouseholdID = "korbi.selectedHouseholdID"
     }
 
     @Published private(set) var households: [Household]
-    @Published private(set) var selectedHouseholdID: UUID?
+    @Published private(set) var selectedHouseholdID: UUID? {
+        didSet {
+            storeSelectedHouseholdID(selectedHouseholdID)
+        }
+    }
     @Published var useWarmLightMode: Bool {
         didSet {
             updatePalette()
@@ -152,10 +157,11 @@ final class KorbiSettings: ObservableObject {
         let storedTheme = userDefaults.object(forKey: StorageKey.warmLightMode) as? Bool
         let resolvedWarmLightMode = storedTheme ?? useWarmLightMode
         let resolvedPalette: KorbiColorPalette = resolvedWarmLightMode ? .warmLight : .serene
+        let resolvedSelectedHouseholdID = selectedHouseholdID ?? userDefaults.string(forKey: StorageKey.selectedHouseholdID).flatMap(UUID.init)
         let resolvedWebhookURL = voiceRecordingWebhookURL ?? KorbiSettings.resolveVoiceRecordingWebhook(from: bundle)
 
         self.households = households
-        self.selectedHouseholdID = selectedHouseholdID
+        self.selectedHouseholdID = resolvedSelectedHouseholdID
         self.userDefaults = userDefaults
         self.useWarmLightMode = resolvedWarmLightMode
         self.recentPurchases = recentPurchases
@@ -625,6 +631,14 @@ final class KorbiSettings: ObservableObject {
     private func updatePalette() {
         withAnimation(.easeInOut(duration: 0.25)) {
             palette = useWarmLightMode ? .warmLight : .serene
+        }
+    }
+
+    private func storeSelectedHouseholdID(_ householdID: UUID?) {
+        if let householdID {
+            userDefaults.set(householdID.uuidString, forKey: StorageKey.selectedHouseholdID)
+        } else {
+            userDefaults.removeObject(forKey: StorageKey.selectedHouseholdID)
         }
     }
 

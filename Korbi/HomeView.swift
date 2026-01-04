@@ -52,6 +52,7 @@ struct HomeView: View {
                             .padding(.trailing, 18)
                             .padding(.bottom, 10)
                     }
+                    .frame(maxWidth: .infinity, alignment: .bottomTrailing)
                     .animation(.spring(response: 0.3, dampingFraction: 0.85), value: isManualEntryVisible)
                 }
             }
