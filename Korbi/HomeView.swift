@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct HomeView: View {
     @EnvironmentObject private var settings: KorbiSettings
@@ -486,7 +487,14 @@ struct HomeView: View {
         .accessibilityLabel("Kategorie auswählen")
     }
 
+    private func triggerEditHapticFeedback() {
+        let generator = UIImpactFeedbackGenerator(style: .light)
+        generator.prepare()
+        generator.impactOccurred()
+    }
+
     private func presentEditor(for item: HouseholdItem) {
+        triggerEditHapticFeedback()
         pendingCompletionItemID = nil
         longPressFeedbackItemID = nil
         editingItem = item

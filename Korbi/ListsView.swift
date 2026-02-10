@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct ShoppingListSummary: Identifiable {
     let id = UUID()
@@ -323,7 +324,14 @@ private struct ListDetailView: View {
         .accessibilityLabel("Kategorie auswählen")
     }
 
+    private func triggerEditHapticFeedback() {
+        let generator = UIImpactFeedbackGenerator(style: .light)
+        generator.prepare()
+        generator.impactOccurred()
+    }
+
     private func presentEditor(for item: HouseholdItem) {
+        triggerEditHapticFeedback()
         longPressFeedbackItemID = nil
         editingItem = item
     }
