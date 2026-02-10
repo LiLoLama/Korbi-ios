@@ -54,6 +54,14 @@ protocol SupabaseService {
         householdID: UUID,
         accessToken: String
     ) async throws -> SupabaseItem
+    func updateItem(
+        id: UUID,
+        name: String,
+        description: String?,
+        quantity: String?,
+        category: String?,
+        accessToken: String
+    ) async throws -> SupabaseItem
     func deleteItem(id: UUID, accessToken: String) async throws
     func sendHouseholdNotification(message: String, householdID: UUID, accessToken: String) async throws
     func createInvite(
@@ -373,6 +381,38 @@ final class SupabaseClient: SupabaseService {
             accessToken: accessToken
         )
         try await performEmptyRequest(request)
+    }
+
+    func updateItem(
+        id: UUID,
+        name: String,
+        description: String?,
+        quantity: String?,
+        category: String?,
+        accessToken: String
+    ) async throws -> SupabaseItem {
+        var request = try dataRequest(
+            path: "rest/v1/items",
+            method: "PATCH",
+            queryItems: [URLQueryItem(name: "id", value: "eq.\(id.uuidString)")],
+            accessToken: accessToken
+        )
+        request.addValue("return=representation", forHTTPHeaderField: "Prefer")
+
+        let payload = SupabaseItemUpdate(
+            name: name,
+            description: description,
+            quantity: quantity,
+            category: category
+        )
+
+        request.httpBody = try encoder.encode(payload)
+
+        let response = try await performDecodingRequest(request) as [SupabaseItem]
+        guard let updatedItem = response.first else {
+            throw SupabaseError.invalidResponse
+        }
+        return updatedItem
     }
 
     func sendHouseholdNotification(message: String, householdID: UUID, accessToken: String) async throws {
@@ -861,6 +901,13 @@ private struct SupabaseItemCreation: Encodable {
         case quantity
         case category
     }
+}
+
+private struct SupabaseItemUpdate: Encodable {
+    let name: String
+    let description: String?
+    let quantity: String?
+    let category: String?
 }
 
 struct SupabaseInvite: Codable, Identifiable, Equatable {
