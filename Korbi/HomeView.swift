@@ -20,6 +20,7 @@ struct HomeView: View {
     @State private var editedItemCategory = ""
     @State private var isUpdatingItem = false
     @State private var itemEditErrorMessage: String?
+    @State private var longPressFeedbackItemID: UUID?
 
     var body: some View {
         NavigationStack {
@@ -309,7 +310,19 @@ struct HomeView: View {
                         .onTapGesture {
                             handleItemTap(item)
                         }
-                        .onLongPressGesture(minimumDuration: 0.4) {
+                        .scaleEffect(longPressFeedbackItemID == item.id ? 0.98 : 1.0)
+                        .shadow(
+                            color: settings.palette.primary.opacity(longPressFeedbackItemID == item.id ? 0.18 : 0),
+                            radius: longPressFeedbackItemID == item.id ? 8 : 0,
+                            x: 0,
+                            y: 4
+                        )
+                        .animation(.easeInOut(duration: 0.18), value: longPressFeedbackItemID)
+                        .onLongPressGesture(minimumDuration: 0.4, maximumDistance: 18, pressing: { isPressing in
+                            withAnimation(.easeInOut(duration: 0.14)) {
+                                longPressFeedbackItemID = isPressing ? item.id : nil
+                            }
+                        }) {
                             presentEditor(for: item)
                         }
                         .swipeActions(edge: .leading, allowsFullSwipe: true) {
@@ -475,11 +488,13 @@ struct HomeView: View {
 
     private func presentEditor(for item: HouseholdItem) {
         pendingCompletionItemID = nil
+        longPressFeedbackItemID = nil
         editingItem = item
     }
 
     private func dismissEditor() {
         editingItem = nil
+        longPressFeedbackItemID = nil
         itemEditErrorMessage = nil
     }
 
