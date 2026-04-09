@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct HomeView: View {
     @EnvironmentObject private var settings: KorbiSettings
@@ -13,6 +14,14 @@ struct HomeView: View {
     @State private var isSubmittingItem = false
     @State private var itemErrorMessage: String?
     @State private var isManualEntryVisible = false
+    @State private var editingItem: HouseholdItem?
+    @State private var editedItemName = ""
+    @State private var editedItemDescription = ""
+    @State private var editedItemQuantity = ""
+    @State private var editedItemCategory = ""
+    @State private var isUpdatingItem = false
+    @State private var itemEditErrorMessage: String?
+    @State private var longPressFeedbackItemID: UUID?
 
     var body: some View {
         NavigationStack {
@@ -61,6 +70,9 @@ struct HomeView: View {
             .navigationBarTitleDisplayMode(.large)
         }
         .accentColor(settings.palette.primary)
+        .sheet(item: $editingItem) { item in
+            editItemSheet(for: item)
+        }
     }
 
     private var manualEntryToggleButton: some View {
@@ -299,6 +311,21 @@ struct HomeView: View {
                         .onTapGesture {
                             handleItemTap(item)
                         }
+                        .scaleEffect(longPressFeedbackItemID == item.id ? 0.98 : 1.0)
+                        .shadow(
+                            color: settings.palette.primary.opacity(longPressFeedbackItemID == item.id ? 0.18 : 0),
+                            radius: longPressFeedbackItemID == item.id ? 8 : 0,
+                            x: 0,
+                            y: 4
+                        )
+                        .animation(.easeInOut(duration: 0.18), value: longPressFeedbackItemID)
+                        .onLongPressGesture(minimumDuration: 0.4, maximumDistance: 18, pressing: { isPressing in
+                            withAnimation(.easeInOut(duration: 0.14)) {
+                                longPressFeedbackItemID = isPressing ? item.id : nil
+                            }
+                        }) {
+                            presentEditor(for: item)
+                        }
                         .swipeActions(edge: .leading, allowsFullSwipe: true) {
                             Button {
                                 withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
@@ -322,6 +349,195 @@ struct HomeView: View {
                     }
                 }
                 .padding(.vertical, 1)
+            }
+        }
+    }
+
+
+    @ViewBuilder
+    private func editItemSheet(for item: HouseholdItem) -> some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 16) {
+                TextField("Name", text: $editedItemName)
+                    .textInputAutocapitalization(.sentences)
+                    .autocorrectionDisabled(false)
+                    .padding(12)
+                    .background(RoundedRectangle(cornerRadius: 12).fill(settings.palette.card.opacity(0.8)))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(settings.palette.outline.opacity(0.7), lineWidth: 1)
+                    )
+
+                TextField("Beschreibung", text: $editedItemDescription, axis: .vertical)
+                    .textInputAutocapitalization(.sentences)
+                    .autocorrectionDisabled(false)
+                    .padding(12)
+                    .background(RoundedRectangle(cornerRadius: 12).fill(settings.palette.card.opacity(0.8)))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(settings.palette.outline.opacity(0.7), lineWidth: 1)
+                    )
+
+                HStack(spacing: 12) {
+                    TextField("Menge", text: $editedItemQuantity)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled(true)
+                        .padding(12)
+                        .background(RoundedRectangle(cornerRadius: 12).fill(settings.palette.card.opacity(0.8)))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(settings.palette.outline.opacity(0.7), lineWidth: 1)
+                        )
+
+                    editCategoryPicker
+                }
+
+                if let errorMessage = itemEditErrorMessage {
+                    Text(errorMessage)
+                        .font(KorbiTheme.Typography.caption())
+                        .foregroundStyle(Color.red)
+                }
+
+                Button(action: submitItemUpdate) {
+                    HStack {
+                        if isUpdatingItem {
+                            ProgressView()
+                                .tint(.white)
+                        }
+                        Text("Änderungen speichern")
+                            .font(KorbiTheme.Typography.body(weight: .semibold))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(settings.palette.primary)
+                .disabled(isUpdatingItem || editedItemName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                Spacer()
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 24)
+            .background(KorbiBackground())
+            .navigationTitle("Artikel bearbeiten")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Abbrechen") {
+                        dismissEditor()
+                    }
+                    .disabled(isUpdatingItem)
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .onAppear {
+            editedItemName = item.name
+            editedItemDescription = item.description
+            editedItemQuantity = item.quantity
+            editedItemCategory = item.category
+            itemEditErrorMessage = nil
+        }
+    }
+
+    private var editCategoryPicker: some View {
+        Menu {
+            ForEach(ItemCategory.allCases) { category in
+                Button {
+                    editedItemCategory = category.rawValue
+                } label: {
+                    HStack {
+                        Text(category.rawValue)
+                        if editedItemCategory == category.rawValue {
+                            Spacer()
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+            }
+
+            if !editedItemCategory.isEmpty {
+                Divider()
+                Button("Keine Kategorie") {
+                    editedItemCategory = ""
+                }
+            }
+        } label: {
+            HStack {
+                Text(editedItemCategory.isEmpty ? "Kategorie" : editedItemCategory)
+                    .font(KorbiTheme.Typography.caption(weight: .semibold))
+                    .foregroundStyle(settings.palette.textSecondary)
+                    .lineLimit(1)
+
+                Spacer()
+
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(settings.palette.primary)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 12).fill(settings.palette.card.opacity(0.8)))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(settings.palette.outline.opacity(0.7), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Kategorie auswählen")
+    }
+
+    private func triggerEditHapticFeedback() {
+        let generator = UIImpactFeedbackGenerator(style: .light)
+        generator.prepare()
+        generator.impactOccurred()
+    }
+
+    private func presentEditor(for item: HouseholdItem) {
+        triggerEditHapticFeedback()
+        pendingCompletionItemID = nil
+        longPressFeedbackItemID = nil
+        editingItem = item
+    }
+
+    private func dismissEditor() {
+        editingItem = nil
+        longPressFeedbackItemID = nil
+        itemEditErrorMessage = nil
+    }
+
+    private func submitItemUpdate() {
+        guard !isUpdatingItem, let item = editingItem else { return }
+
+        let trimmedName = editedItemName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            itemEditErrorMessage = ItemUpdateError.invalidName.errorDescription
+            return
+        }
+
+        itemEditErrorMessage = nil
+        isUpdatingItem = true
+
+        Task {
+            do {
+                try await settings.updateItem(
+                    item,
+                    name: trimmedName,
+                    description: editedItemDescription,
+                    quantity: editedItemQuantity,
+                    category: editedItemCategory
+                )
+
+                await MainActor.run {
+                    isUpdatingItem = false
+                    dismissEditor()
+                }
+            } catch {
+                let localizedError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                await MainActor.run {
+                    itemEditErrorMessage = localizedError
+                    isUpdatingItem = false
+                }
             }
         }
     }

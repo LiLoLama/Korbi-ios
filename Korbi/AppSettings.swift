@@ -104,6 +104,23 @@ enum ItemCreationError: LocalizedError {
     }
 }
 
+enum ItemUpdateError: LocalizedError {
+    case missingHousehold
+    case notAuthenticated
+    case invalidName
+
+    var errorDescription: String? {
+        switch self {
+        case .missingHousehold:
+            return "Kein Haushalt ausgewählt."
+        case .notAuthenticated:
+            return "Du musst angemeldet sein, um Artikel zu bearbeiten."
+        case .invalidName:
+            return "Bitte gib einen Artikelnamen ein."
+        }
+    }
+}
+
 @MainActor
 final class KorbiSettings: ObservableObject {
     private enum StorageKey {
@@ -269,6 +286,61 @@ final class KorbiSettings: ObservableObject {
                 householdItems[householdID] = items
             }
         } catch {
+            throw error
+        }
+    }
+
+    func updateItem(
+        _ item: HouseholdItem,
+        name: String,
+        description: String,
+        quantity: String,
+        category: String
+    ) async throws {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { throw ItemUpdateError.invalidName }
+        guard let householdID = selectedHouseholdID else { throw ItemUpdateError.missingHousehold }
+        guard let authManager else { throw ItemUpdateError.notAuthenticated }
+
+        let sanitizedDescription = description.trimmingCharacters(in: .whitespacesAndNewlines)
+        let sanitizedQuantity = quantity.trimmingCharacters(in: .whitespacesAndNewlines)
+        let sanitizedCategory = category.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        let updatedItem = HouseholdItem(
+            id: item.id,
+            name: trimmedName,
+            description: sanitizedDescription,
+            quantity: sanitizedQuantity,
+            category: sanitizedCategory.isEmpty ? "Sonstiges" : sanitizedCategory
+        )
+
+        await MainActor.run {
+            var items = householdItems[householdID] ?? []
+            if let index = items.firstIndex(of: item) {
+                items[index] = updatedItem
+                householdItems[householdID] = items
+            }
+        }
+
+        do {
+            let session = try await authManager.getValidSession()
+            activeSession = session
+            _ = try await supabaseClient.updateItem(
+                id: item.id,
+                name: trimmedName,
+                description: sanitizedDescription.isEmpty ? nil : sanitizedDescription,
+                quantity: sanitizedQuantity.isEmpty ? nil : sanitizedQuantity,
+                category: sanitizedCategory.isEmpty ? nil : sanitizedCategory,
+                accessToken: session.accessToken
+            )
+        } catch {
+            await MainActor.run {
+                var items = householdItems[householdID] ?? []
+                if let index = items.firstIndex(where: { $0.id == item.id }) {
+                    items[index] = item
+                    householdItems[householdID] = items
+                }
+            }
             throw error
         }
     }
